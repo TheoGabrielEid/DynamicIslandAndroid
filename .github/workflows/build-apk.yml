@@ -29,7 +29,14 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build APK with Gradle
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee build.log || {
+            grep -E "e: |ERROR:|FAILURE:|What went wrong" -A 3 build.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          }
 
       - name: Rename and Stage APK
         run: |
@@ -50,22 +57,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
-          name: "Dynamic Island Android v1.0.0"
+          name: "Dynamic Island Android Pro v1.0.0"
           body: |
-            ### 📱 Dynamic Island for Android (APK)
+            ### 📱 Dynamic Island for Android Pro (PC-Edition Match)
             
-            **Features:**
-            - Floating Punch-Hole Camera Notch Overlay (`dynamicSpot` style).
-            - Real-time Music Player with animated **Squiggly Wavy Scrubber Bar**.
-            - Works with Spotify, YouTube Music, Apple Music, Chrome, SoundCloud, etc.
-            - Real-time Charging and Battery Status.
-            - Custom Notch X & Y position and size calibration sliders.
-            
-            **Installation:**
-            1. Download `DynamicIsland-v1.0.0.apk` onto your phone.
-            2. Tap to install (enable "Install unknown apps" if prompted).
-            3. Open the app and grant **Overlay** and **Notification Access** permissions.
-            4. Toggle **Enable Dynamic Island** and enjoy!
+            **New Features & Upgrades:**
+            - **5-Tab PC-Style Expanded Capsule**: `Media`, `System`, `Focus`, `Tools`, and `Apps` + Live Header Clock & Date, Pin `📌` lock, and horizontal swipe between tabs.
+            - **Live Download (`DL`) & Upload (`UL`) Network Histograms + LAN/WAN/VPN Telemetry**: Matches your Windows PC Dynamic Island with 48-bar live traffic graphs, LAN IP, and WAN IP that turns **bright green (`VPN`)** when a VPN is active and **red** when unprotected.
+            - **Vinyl Record Turntable & Glossy Cover Art (`AlbumArtView`)**: Spinning vinyl record disc when idle, glossy cover art with tap-to-open player app, and 12-bar live waveform visualizer + squiggly wavy scrubber.
+            - **Circular Focus Ring Timer (`FocusRingView`)**: Smooth circular Pomodoro countdown dial (`5m`, `15m`, `25m`, `50m`).
+            - **12 Accent Color Themes + OLED Specular Glint & Aura Glow**: Material Blue, Lavender, Mint, Peach, Cyan, Coral, Rose, Gold, Violet, Emerald, Crimson, and Sky.
+            - **Live Clipboard Bar & Quick Apps Launcher**: Inspect/share copied text, pop up the Android Wi-Fi panel, or launch Spotify, YouTube, WhatsApp, Instagram, Maps, Browser, Dialer, and Messages.
           files: build_output/DynamicIsland-v1.0.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

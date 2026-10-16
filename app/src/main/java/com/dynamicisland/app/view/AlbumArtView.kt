@@ -115,7 +115,7 @@ class AlbumArtView @JvmOverloads constructor(
             canvas.clipPath(clipPath)
 
             // Center-crop matrix
-            val scale = maxOf(w / bmp.width.toFloat(), h / bmp.height.toFloat())
+            val scale = kotlin.math.max(w / bmp.width.toFloat(), h / bmp.height.toFloat())
             val dx = (w - bmp.width * scale) * 0.5f
             val dy = (h - bmp.height * scale) * 0.5f
             shaderMatrix.reset()
