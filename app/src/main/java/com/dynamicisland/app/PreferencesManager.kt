@@ -62,6 +62,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean("show_headset_connected", true)
         set(value) = prefs.edit().putBoolean("show_headset_connected", value).apply()
 
+    var showAppNotifications: Boolean
+        get() = prefs.getBoolean("show_app_notifs", true)
+        set(value) = prefs.edit().putBoolean("show_app_notifs", value).apply()
+
     fun resetPositionDefaults() {
         notchXOffset = 0
         notchYOffset = 8

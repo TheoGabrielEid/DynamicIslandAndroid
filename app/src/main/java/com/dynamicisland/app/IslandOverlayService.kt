@@ -176,6 +176,48 @@ class IslandOverlayService : Service() {
         updateViews()
     }
 
+    // App Notification State (WhatsApp, Telegram, Instagram, etc.)
+    private var activeNotification: NotificationStateBridge.AppNotification? = null
+    private var notifActiveUntil: Long = 0L
+
+    private val notifListener: (NotificationStateBridge.AppNotification?) -> Unit = { notif ->
+        activeNotification = notif
+        if (notif != null && prefs.showAppNotifications) {
+            notifActiveUntil = SystemClock.elapsedRealtime() + 6500L
+            val color = getNotificationAccentColor(notif.packageName)
+            vibrateAlert()
+            if (isExpanded) {
+                triggerExpandedAura(color, 1600L)
+            } else {
+                (compactView as? IslandContainerView)?.triggerAura(color, 2600L)
+            }
+            updateViews()
+            handler.postDelayed({
+                if (SystemClock.elapsedRealtime() >= notifActiveUntil) {
+                    updateViews()
+                }
+            }, 6600L)
+        } else {
+            updateViews()
+        }
+    }
+
+    private fun getNotificationAccentColor(packageName: String): Int {
+        val lower = packageName.lowercase()
+        return when {
+            lower.contains("whatsapp") -> Color.parseColor("#25D366")
+            lower.contains("telegram") -> Color.parseColor("#2AABEE")
+            lower.contains("instagram") -> Color.parseColor("#E1306C")
+            lower.contains("twitter") || lower.contains(".x.") -> Color.parseColor("#1DA1F2")
+            lower.contains("messenger") -> Color.parseColor("#0084FF")
+            lower.contains("snapchat") -> Color.parseColor("#FFFC00")
+            lower.contains("discord") -> Color.parseColor("#5865F2")
+            lower.contains("gmail") || lower.contains("mail") -> Color.parseColor("#EA4335")
+            lower.contains("sms") || lower.contains("messaging") -> Color.parseColor("#34A853")
+            else -> parseAccentColor()
+        }
+    }
+
     private val bridgeListener: (MediaStateBridge.MediaSnapshot) -> Unit = { snap ->
         val trackChanged = snap.isPlaying && snap.title != lastTrackTitle && snap.title != "Nothing playing"
         if (snap.title != "Nothing playing") {
@@ -333,6 +375,7 @@ class IslandOverlayService : Service() {
         setupOverlayViews()
         MediaStateBridge.addListener(bridgeListener)
         NavigationStateBridge.addListener(navListener)
+        NotificationStateBridge.addListener(notifListener)
         handler.post(tickRunnable)
     }
 
@@ -476,6 +519,13 @@ class IslandOverlayService : Service() {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x = pillXPx
             y = pillYPx
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
         }
 
         setupCompactGestures()
@@ -499,6 +549,13 @@ class IslandOverlayService : Service() {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x = 0
             y = pillYPx
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
         }
 
         setupExpandedControls()
@@ -521,6 +578,13 @@ class IslandOverlayService : Service() {
             p.height = pillHeightPx
             p.x = pillXPx
             p.y = pillYPx
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    p.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    p.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
             if (compactView?.parent != null) {
                 try {
                     windowManager.updateViewLayout(compactView, p)
@@ -529,6 +593,13 @@ class IslandOverlayService : Service() {
         }
         expandedParams?.let { p ->
             p.y = pillYPx
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    p.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    p.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
             if (expandedView?.parent != null) {
                 try {
                     windowManager.updateViewLayout(expandedView, p)
@@ -538,41 +609,89 @@ class IslandOverlayService : Service() {
     }
 
     private fun setupCompactGestures() {
-        val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                compactView?.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                expandIsland()
-                return true
-            }
+        var downX = 0f
+        var downY = 0f
+        var downTime = 0L
+        var isPotentialTap = false
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat().coerceAtLeast(24f)
+        var lastTapTime = 0L
 
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                if (prefs.doubleTapPlayPause) {
-                    compactView?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    MediaStateBridge.playOrPause(this@IslandOverlayService)
-                    showToastPill(
-                        if (MediaStateBridge.current.isPlaying) "▶ Playing" else "⏸ Paused",
-                        R.drawable.ic_music,
-                        parseAccentColor()
-                    )
-                } else {
-                    expandIsland()
+        compactView?.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    downTime = SystemClock.uptimeMillis()
+                    isPotentialTap = true
+                    true
                 }
-                return true
-            }
-
-            override fun onLongPress(e: MotionEvent) {
-                if (prefs.longPressFlashlight) {
-                    compactView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    toggleFlashlight()
-                } else {
-                    expandIsland()
+                MotionEvent.ACTION_MOVE -> {
+                    if (abs(event.rawX - downX) > touchSlop || abs(event.rawY - downY) > touchSlop) {
+                        isPotentialTap = false
+                    }
+                    true
                 }
-            }
-        })
+                MotionEvent.ACTION_UP -> {
+                    val duration = SystemClock.uptimeMillis() - downTime
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
 
-        compactView?.setOnTouchListener { _, event ->
-            detector.onTouchEvent(event)
-            true
+                    if (isPotentialTap && duration < 500L) {
+                        val now = SystemClock.uptimeMillis()
+                        if (now - lastTapTime < 320L && prefs.doubleTapPlayPause) {
+                            // Double tap: toggle music play/pause
+                            lastTapTime = 0L
+                            v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            MediaStateBridge.playOrPause(this@IslandOverlayService)
+                            showToastPill(
+                                if (MediaStateBridge.current.isPlaying) "▶ Playing" else "⏸ Paused",
+                                R.drawable.ic_music,
+                                parseAccentColor()
+                            )
+                        } else {
+                            lastTapTime = now
+                            // Check if an incoming notification is active: tap launches the app/chat!
+                            if (notifActiveUntil > SystemClock.elapsedRealtime() && activeNotification != null) {
+                                val notif = activeNotification
+                                notifActiveUntil = 0L
+                                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                try {
+                                    if (notif?.contentIntent != null) {
+                                        notif.contentIntent.send()
+                                    } else {
+                                        launchPackageOrWeb(notif?.packageName ?: "", "")
+                                    }
+                                } catch (e: Exception) {
+                                    launchPackageOrWeb(notif?.packageName ?: "", "")
+                                }
+                                updateViews()
+                            } else {
+                                // Instant tap: expand or collapse island immediately
+                                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (isExpanded) {
+                                    collapseIsland(force = true)
+                                } else {
+                                    expandIsland()
+                                }
+                            }
+                        }
+                    } else if (abs(dx) > touchSlop * 2f && abs(dx) > abs(dy)) {
+                        // Horizontal swipe across compact pill: dismiss notification
+                        if (notifActiveUntil > SystemClock.elapsedRealtime()) {
+                            notifActiveUntil = 0L
+                            NotificationStateBridge.dismissCurrent()
+                            v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            updateViews()
+                        }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    isPotentialTap = false
+                    true
+                }
+                else -> false
+            }
         }
     }
 
@@ -615,12 +734,47 @@ class IslandOverlayService : Service() {
             }
         }
 
-        // Collapse button & bottom grabber swipe/tap
+        // Collapse triggers: top camera notch dismiss bar, close button, clock, and bottom grabber
+        exp.findViewById<View>(R.id.top_notch_dismiss_bar)?.setOnClickListener {
+            collapseIsland(force = true)
+        }
+        exp.findViewById<View>(R.id.tv_header_time)?.setOnClickListener {
+            collapseIsland(force = true)
+        }
+        exp.findViewById<View>(R.id.tv_header_date)?.setOnClickListener {
+            collapseIsland(force = true)
+        }
         exp.findViewById<ImageButton>(R.id.btn_collapse)?.setOnClickListener {
             collapseIsland(force = true)
         }
         exp.findViewById<View>(R.id.bottom_grabber_area)?.setOnClickListener {
             collapseIsland(force = true)
+        }
+
+        // Notification Banner Actions (Open WhatsApp/app chat or dismiss)
+        exp.findViewById<View>(R.id.banner_notif_btn_open)?.setOnClickListener {
+            val notif = activeNotification
+            if (notif != null) {
+                vibrateTick()
+                collapseIsland(force = true)
+                try {
+                    if (notif.contentIntent != null) {
+                        notif.contentIntent.send()
+                    } else {
+                        launchPackageOrWeb(notif.packageName, "")
+                    }
+                } catch (e: Exception) {
+                    launchPackageOrWeb(notif.packageName, "")
+                }
+            }
+        }
+        exp.findViewById<View>(R.id.banner_notif_btn_dismiss)?.setOnClickListener {
+            vibrateTick()
+            activeNotification = null
+            notifActiveUntil = 0L
+            NotificationStateBridge.dismissCurrent()
+            exp.findViewById<View>(R.id.banner_notification)?.visibility = View.GONE
+            updateViews()
         }
 
         // Swipe up to collapse or swipe left/right to cycle tabs!
@@ -1478,6 +1632,33 @@ class IslandOverlayService : Service() {
                 trailingTv?.visibility = View.VISIBLE
                 trailingTv?.text = "●"
                 trailingTv?.setTextColor(accentColor)
+            } else if (now < notifActiveUntil && activeNotification != null && prefs.showAppNotifications) {
+                // App Notification Alert Mode (WhatsApp, Telegram, Instagram, etc.)
+                val notif = activeNotification!!
+                val pad = (2 * resources.displayMetrics.density).toInt()
+                iconIv?.setPadding(pad, pad, pad, pad)
+                if (notif.icon != null && !notif.icon.isRecycled) {
+                    iconIv?.clearColorFilter()
+                    iconIv?.imageTintList = null
+                    iconIv?.setImageBitmap(notif.icon)
+                } else {
+                    iconIv?.setImageResource(R.drawable.ic_music)
+                    iconIv?.imageTintList = ColorStateList.valueOf(Color.parseColor("#062E6F"))
+                }
+
+                val notifText = if (notif.title.isNotEmpty() && notif.text.isNotEmpty()) {
+                    "${notif.title}: ${notif.text}"
+                } else if (notif.title.isNotEmpty()) {
+                    notif.title
+                } else {
+                    notif.text
+                }
+                titleTv?.text = "${notif.appName} · $notifText"
+                visView?.visibility = View.GONE
+                trailingTv?.visibility = View.VISIBLE
+                trailingTv?.text = "💬"
+                val notifColor = getNotificationAccentColor(notif.packageName)
+                trailingTv?.setTextColor(notifColor)
             } else if (isNavigating && prefs.showMapsNavigation) {
                 // Navigation Active Mode (Google Maps directions)
                 val pad = (3 * resources.displayMetrics.density).toInt()
@@ -1603,6 +1784,28 @@ class IslandOverlayService : Service() {
             playBtn?.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
             wavyBar?.setPlaybackState(currentPos, currentDur, isPlaying)
 
+            // Update Real-Time App Notification Banner
+            val banner = v.findViewById<View>(R.id.banner_notification)
+            if (activeNotification != null && !activeNotification!!.isExpired && prefs.showAppNotifications) {
+                banner?.visibility = View.VISIBLE
+                val notif = activeNotification!!
+                val iconView = v.findViewById<ImageView>(R.id.banner_notif_icon)
+                if (notif.icon != null && !notif.icon.isRecycled) {
+                    iconView?.clearColorFilter()
+                    iconView?.imageTintList = null
+                    iconView?.setImageBitmap(notif.icon)
+                } else {
+                    iconView?.setImageResource(R.drawable.ic_music)
+                    iconView?.imageTintList = ColorStateList.valueOf(parseAccentColor())
+                }
+                v.findViewById<TextView>(R.id.banner_notif_app)?.text = notif.appName
+                v.findViewById<TextView>(R.id.banner_notif_app)?.setTextColor(getNotificationAccentColor(notif.packageName))
+                v.findViewById<TextView>(R.id.banner_notif_title)?.text = notif.title
+                v.findViewById<TextView>(R.id.banner_notif_text)?.text = notif.text
+            } else {
+                banner?.visibility = View.GONE
+            }
+
             if (activeTab == 5) {
                 updateNavUI()
             }
@@ -1644,6 +1847,7 @@ class IslandOverlayService : Service() {
         bgExecutor.shutdownNow()
         MediaStateBridge.removeListener(bridgeListener)
         NavigationStateBridge.removeListener(navListener)
+        NotificationStateBridge.removeListener(notifListener)
         try {
             cameraManager?.unregisterTorchCallback(torchCallback)
         } catch (e: Exception) {}

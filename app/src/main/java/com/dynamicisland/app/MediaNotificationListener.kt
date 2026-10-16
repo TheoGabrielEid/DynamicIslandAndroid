@@ -123,6 +123,7 @@ class MediaNotificationListener : NotificationListenerService() {
         findActiveMediaController()
         dispatchMediaUpdate()
         processNavigationNotification(sbn)
+        processAppNotification(sbn)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
@@ -130,6 +131,9 @@ class MediaNotificationListener : NotificationListenerService() {
         dispatchMediaUpdate()
         if (sbn?.packageName == "com.google.android.apps.maps") {
             NavigationStateBridge.clear()
+        }
+        sbn?.key?.let {
+            NotificationStateBridge.dismissCurrent(it)
         }
     }
 
@@ -179,6 +183,102 @@ class MediaNotificationListener : NotificationListenerService() {
                 )
             }
         } catch (e: Exception) {}
+    }
+
+    private fun processAppNotification(sbn: StatusBarNotification?) {
+        if (sbn == null) return
+        val pkg = sbn.packageName ?: return
+
+        // Skip internal/overlay, system decor, or maps
+        if (pkg == packageName) return
+        if (pkg == "android" || pkg == "com.android.systemui") return
+        if (pkg == "com.google.android.apps.maps") return
+
+        val notification = sbn.notification ?: return
+
+        // Skip media style notifications (handled by MediaStateBridge)
+        val extras = notification.extras ?: return
+        val hasMediaSession = extras.containsKey(Notification.EXTRA_MEDIA_SESSION)
+        val template = extras.getString(Notification.EXTRA_TEMPLATE) ?: ""
+        if (hasMediaSession || template.contains("MediaStyle", ignoreCase = true)) return
+
+        // Skip ongoing persistent notifications (e.g. download services, foreground tasks without alerts)
+        val isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
+        if (isOngoing) return
+
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim() ?: ""
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim() ?: ""
+        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim() ?: ""
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()?.trim() ?: ""
+        val infoText = extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()?.trim() ?: ""
+
+        val content = when {
+            text.isNotEmpty() -> text
+            bigText.isNotEmpty() -> bigText
+            subText.isNotEmpty() -> subText
+            infoText.isNotEmpty() -> infoText
+            else -> ""
+        }
+
+        if (title.isEmpty() && content.isEmpty()) return
+
+        // Resolve friendly application name (e.g. WhatsApp, Instagram, Messages)
+        val appName = try {
+            val appInfo = packageManager.getApplicationInfo(pkg, 0)
+            packageManager.getApplicationLabel(appInfo).toString()
+        } catch (e: Exception) {
+            formatAppName(pkg)
+        }
+
+        // Extract icon: large icon first (contact photo or chat avatar), then app icon
+        var notifIcon: Bitmap? = null
+        val largeIcon = notification.getLargeIcon()
+        if (largeIcon != null) {
+            try {
+                val d = largeIcon.loadDrawable(this)
+                if (d != null) {
+                    notifIcon = drawableToBitmap(d, 120)
+                }
+            } catch (e: Exception) {}
+        }
+        if (notifIcon == null) {
+            try {
+                val appDrawable = packageManager.getApplicationIcon(pkg)
+                notifIcon = drawableToBitmap(appDrawable, 120)
+            } catch (e: Exception) {}
+        }
+
+        val key = sbn.key ?: "${pkg}_${sbn.id}"
+        val contentIntent = notification.contentIntent
+
+        NotificationStateBridge.postNotification(
+            NotificationStateBridge.AppNotification(
+                key = key,
+                packageName = pkg,
+                appName = appName,
+                title = title.ifEmpty { appName },
+                text = content,
+                icon = notifIcon,
+                contentIntent = contentIntent
+            )
+        )
+    }
+
+    private fun drawableToBitmap(drawable: android.graphics.drawable.Drawable, maxDim: Int = 120): Bitmap? {
+        if (drawable is BitmapDrawable && drawable.bitmap != null) {
+            return scaleBitmap(drawable.bitmap, maxDim)
+        }
+        return try {
+            val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth.coerceAtMost(maxDim) else maxDim
+            val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight.coerceAtMost(maxDim) else maxDim
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun executeTransportCommand(cmd: String): Boolean {
