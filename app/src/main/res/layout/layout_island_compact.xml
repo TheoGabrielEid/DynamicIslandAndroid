@@ -15,7 +15,7 @@
         android:layout_height="22dp"
         android:contentDescription="Mini Art"
         android:scaleType="centerCrop"
-        android:src="@android:drawable/ic_media_play" />
+        android:src="@drawable/ic_music" />
 
     <TextView
         android:id="@+id/compact_title"

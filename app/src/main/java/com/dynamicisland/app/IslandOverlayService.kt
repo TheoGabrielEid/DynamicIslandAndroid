@@ -138,7 +138,7 @@ class IslandOverlayService : Service() {
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Dynamic Island Active")
             .setContentText("Tap to configure notch position and options")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_music)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()
@@ -312,7 +312,7 @@ class IslandOverlayService : Service() {
             val trailingTv = v.findViewById<TextView>(R.id.compact_trailing)
 
             titleTv?.text = if (isPlaying || currentTitle.isNotEmpty()) currentTitle else "Dynamic Island"
-            iconIv?.setImageResource(if (isPlaying) android.R.drawable.ic_media_play else android.R.drawable.ic_dialog_info)
+            iconIv?.setImageResource(R.drawable.ic_music)
             trailingTv?.text = if (isPlaying) "●" else ""
         }
 
@@ -328,7 +328,7 @@ class IslandOverlayService : Service() {
             artistTv?.text = if (currentArtist.isNotEmpty()) currentArtist else (currentApp.ifEmpty { "Playing on this device" })
             badgeTv?.text = if (currentApp.isNotEmpty()) "● ${currentApp.uppercase()}" else (if (isPlaying) "● PLAYING" else "● IDLE")
 
-            playBtn?.setImageResource(if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+            playBtn?.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
             wavyBar?.setPlaybackState(currentPos, currentDur, isPlaying)
         }
     }
