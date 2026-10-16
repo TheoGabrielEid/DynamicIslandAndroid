@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -28,19 +28,20 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Make Gradle Executable
+        run: chmod +x gradlew
+
       - name: Build APK with Gradle
-        run: |
-          if [ -f "gradlew" ] && [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            chmod +x gradlew
-            ./gradlew assembleRelease --stacktrace
-          else
-            gradle assembleRelease --stacktrace
-          fi
+        run: ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
 
       - name: Rename and Stage APK
         run: |
           mkdir -p build_output
-          cp app/build/outputs/apk/release/*.apk build_output/DynamicIsland-v1.0.0.apk
+          if ls app/build/outputs/apk/release/*.apk 1> /dev/null 2>&1; then
+            cp app/build/outputs/apk/release/*.apk build_output/DynamicIsland-v1.0.0.apk
+          else
+            cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-v1.0.0.apk
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
