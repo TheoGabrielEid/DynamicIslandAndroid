@@ -63,7 +63,7 @@ class MediaNotificationListener : NotificationListenerService() {
             addAction(ACTION_SEEK)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(commandReceiver, filter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(commandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(commandReceiver, filter)
         }
@@ -104,7 +104,7 @@ class MediaNotificationListener : NotificationListenerService() {
                 activeController?.registerCallback(controllerCallback)
                 dispatchMediaUpdate()
             }
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
             // Notification Listener permission not granted yet
         }
     }
@@ -146,7 +146,7 @@ class MediaNotificationListener : NotificationListenerService() {
         try {
             unregisterReceiver(commandReceiver)
             activeController?.unregisterCallback(controllerCallback)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         super.onDestroy()
     }
 }

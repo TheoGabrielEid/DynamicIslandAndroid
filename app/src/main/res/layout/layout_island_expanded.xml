@@ -15,14 +15,13 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <com.google.android.material.imageview.ShapeableImageView
+        <ImageView
             android:id="@+id/expanded_art"
             android:layout_width="54dp"
             android:layout_height="54dp"
             android:contentDescription="Album Art"
             android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_media_play"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium" />
+            android:src="@android:drawable/ic_media_play" />
 
         <LinearLayout
             android:layout_width="0dp"

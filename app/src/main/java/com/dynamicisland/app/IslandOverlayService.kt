@@ -86,7 +86,7 @@ class IslandOverlayService : Service() {
                 ACTION_BATTERY -> {
                     val charging = intent.getBooleanExtra(EXTRA_CHARGING, false)
                     if (charging) {
-                        showToastPill("Charging", android.R.drawable.ic_lock_idle_charging)
+                        showToastPill("Charging", R.drawable.ic_bolt)
                     }
                 }
             }
@@ -106,7 +106,7 @@ class IslandOverlayService : Service() {
             addAction(ACTION_BATTERY)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mediaUpdateReceiver, filter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(mediaUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(mediaUpdateReceiver, filter)
         }
@@ -347,7 +347,7 @@ class IslandOverlayService : Service() {
         isRunning = false
         try {
             unregisterReceiver(mediaUpdateReceiver)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         if (compactView?.parent != null) windowManager.removeView(compactView)
         if (expandedView?.parent != null) windowManager.removeView(expandedView)
