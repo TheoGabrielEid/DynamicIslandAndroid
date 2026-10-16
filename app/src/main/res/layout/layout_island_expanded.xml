@@ -108,7 +108,7 @@
                 android:singleLine="true"
                 android:text="Tools"
                 android:textColor="@color/m3_muted"
-                android:textSize="10sp"
+                android:textSize="9.5sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -121,7 +121,20 @@
                 android:singleLine="true"
                 android:text="Apps"
                 android:textColor="@color/m3_muted"
-                android:textSize="10sp"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tab_nav"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tab_unselected"
+                android:gravity="center"
+                android:singleLine="true"
+                android:text="Nav"
+                android:textColor="@color/m3_muted"
+                android:textSize="9.5sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -844,6 +857,93 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+    </LinearLayout>
+
+    <!-- ==================== PAGE 6: GOOGLE MAPS LIVE NAVIGATION ==================== -->
+    <LinearLayout
+        android:id="@+id/page_nav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_media_main_card"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Turn Icon Frame -->
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_app_badge"
+                android:backgroundTint="#1A4ADE80">
+
+                <ImageView
+                    android:id="@+id/nav_turn_icon"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_navigation"
+                    app:tint="#4ADE80" />
+            </FrameLayout>
+
+            <!-- Navigation Details -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/nav_distance_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Turn right in 200 m"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/nav_maneuver_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Onto Main Street"
+                    android:textColor="@color/m3_on_surface_var"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/nav_eta_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="14 min · 5:24 PM"
+                    android:textColor="#4ADE80"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Open Maps App Button -->
+            <TextView
+                android:id="@+id/btn_open_maps"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🗺 Maps"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Bottom Gesture Grabber Pill -->

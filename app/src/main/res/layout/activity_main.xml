@@ -503,6 +503,24 @@
                     android:text="Long-Press Pill to Toggle Flashlight"
                     android:textColor="@color/m3_on_surface"
                     android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_maps_nav"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Google Maps Turn-by-Turn Island Directions"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_headset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Headphones &amp; Earbuds Connect Alerts"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

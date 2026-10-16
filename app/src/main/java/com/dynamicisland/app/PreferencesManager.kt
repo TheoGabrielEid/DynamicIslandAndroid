@@ -54,6 +54,14 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean("wan_vpn_color", true)
         set(value) = prefs.edit().putBoolean("wan_vpn_color", value).apply()
 
+    var showMapsNavigation: Boolean
+        get() = prefs.getBoolean("show_maps_nav", true)
+        set(value) = prefs.edit().putBoolean("show_maps_nav", value).apply()
+
+    var showHeadsetConnected: Boolean
+        get() = prefs.getBoolean("show_headset_connected", true)
+        set(value) = prefs.edit().putBoolean("show_headset_connected", value).apply()
+
     fun resetPositionDefaults() {
         notchXOffset = 0
         notchYOffset = 8

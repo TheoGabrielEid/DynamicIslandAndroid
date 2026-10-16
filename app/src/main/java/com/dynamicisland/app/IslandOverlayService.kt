@@ -136,6 +136,16 @@ class IslandOverlayService : Service() {
     // Clipboard state
     private var lastClipboardText: String = ""
 
+    // Google Maps Navigation state
+    private var isNavigating: Boolean = false
+    private var navManeuver: String = ""
+    private var navDistance: String = ""
+    private var navEta: String = ""
+    private var navIcon: Bitmap? = null
+
+    // Audio Output / Headset state
+    private var isHeadsetPlugged: Boolean = false
+
     // Live Network Traffic & LAN/WAN/VPN Telemetry (matches Windows PC NetMeter)
     private var prevRxBytes: Long = -1L
     private var prevTxBytes: Long = -1L
@@ -150,6 +160,21 @@ class IslandOverlayService : Service() {
     private var lastWanFetchMs: Long = 0L
     @Volatile
     private var wanFetchBusy: Boolean = false
+
+    private val navListener: (NavigationStateBridge.NavSnapshot) -> Unit = { snap ->
+        val wasNavigating = isNavigating
+        isNavigating = snap.isNavigating && !snap.isStale
+        navManeuver = snap.maneuverText
+        navDistance = snap.distanceText
+        navEta = snap.etaText
+        navIcon = snap.icon
+
+        if (isNavigating && !wasNavigating && prefs.showMapsNavigation) {
+            val dist = if (navDistance.isNotBlank()) navDistance else "Navigation"
+            showToastPill("🧭 $dist", R.drawable.ic_navigation, Color.parseColor("#4ADE80"))
+        }
+        updateViews()
+    }
 
     private val bridgeListener: (MediaStateBridge.MediaSnapshot) -> Unit = { snap ->
         val trackChanged = snap.isPlaying && snap.title != lastTrackTitle && snap.title != "Nothing playing"
@@ -233,6 +258,43 @@ class IslandOverlayService : Service() {
                         showToastPill("⚡ Charging $pct%", R.drawable.ic_bolt, Color.parseColor("#7FD88F"))
                     }
                 }
+                Intent.ACTION_HEADSET_PLUG -> {
+                    val state = intent.getIntExtra("state", -1)
+                    val name = intent.getStringExtra("name") ?: "Headphones"
+                    if (state == 1) {
+                        isHeadsetPlugged = true
+                        if (prefs.showHeadsetConnected) {
+                            showToastPill("🎧 $name Connected", R.drawable.ic_headphones, parseAccentColor())
+                        }
+                    } else if (state == 0) {
+                        isHeadsetPlugged = false
+                        if (prefs.showHeadsetConnected) {
+                            showToastPill("🎧 Headset Disconnected", R.drawable.ic_headphones, Color.parseColor("#FFB4AB"))
+                        }
+                    }
+                    updateViews()
+                }
+                android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(android.bluetooth.BluetoothDevice.EXTRA_DEVICE, android.bluetooth.BluetoothDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(android.bluetooth.BluetoothDevice.EXTRA_DEVICE)
+                    }
+                    val devName = try { device?.name } catch (e: SecurityException) { null } ?: "Earbuds / Headset"
+                    isHeadsetPlugged = true
+                    if (prefs.showHeadsetConnected) {
+                        showToastPill("🎧 $devName Connected", R.drawable.ic_headphones, parseAccentColor())
+                    }
+                    updateViews()
+                }
+                android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                    isHeadsetPlugged = false
+                    if (prefs.showHeadsetConnected) {
+                        showToastPill("🎧 Earbuds Disconnected", R.drawable.ic_headphones, Color.parseColor("#FFB4AB"))
+                    }
+                    updateViews()
+                }
                 ACTION_REFRESH_PREFS -> {
                     applyWindowLayoutUpdates()
                     updateViews()
@@ -257,6 +319,10 @@ class IslandOverlayService : Service() {
             addAction(ACTION_UPDATE_MEDIA)
             addAction(ACTION_BATTERY)
             addAction(ACTION_REFRESH_PREFS)
+            addAction(Intent.ACTION_HEADSET_PLUG)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(android.bluetooth.BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(mediaUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -266,6 +332,7 @@ class IslandOverlayService : Service() {
 
         setupOverlayViews()
         MediaStateBridge.addListener(bridgeListener)
+        NavigationStateBridge.addListener(navListener)
         handler.post(tickRunnable)
     }
 
@@ -526,12 +593,13 @@ class IslandOverlayService : Service() {
 
         exp.findViewById<WaveformVisualizerView>(R.id.expanded_visualizer)?.barCount = 12
 
-        // 5-Tab Navigation (Media, System, Focus, Tools, Apps)
+        // 6-Tab Navigation (Media, System, Focus, Tools, Apps, Nav)
         exp.findViewById<TextView>(R.id.tab_media)?.setOnClickListener { switchTab(0) }
         exp.findViewById<TextView>(R.id.tab_system)?.setOnClickListener { switchTab(1) }
         exp.findViewById<TextView>(R.id.tab_focus)?.setOnClickListener { switchTab(2) }
         exp.findViewById<TextView>(R.id.tab_tools)?.setOnClickListener { switchTab(3) }
         exp.findViewById<TextView>(R.id.tab_apps)?.setOnClickListener { switchTab(4) }
+        exp.findViewById<TextView>(R.id.tab_nav)?.setOnClickListener { switchTab(5) }
 
         // Pin button (matching PC DynamicCapsule pin feature)
         val pinBtn = exp.findViewById<TextView>(R.id.btn_pin)
@@ -571,7 +639,7 @@ class IslandOverlayService : Service() {
                     return true
                 }
                 if (abs(dx) > 65f && abs(velocityX) > abs(velocityY) && abs(velocityX) > 220f) {
-                    val nextTab = if (dx < 0) (activeTab + 1) % 5 else (activeTab + 4) % 5
+                    val nextTab = if (dx < 0) (activeTab + 1) % 6 else (activeTab + 5) % 6
                     switchTab(nextTab)
                     return true
                 }
@@ -672,10 +740,49 @@ class IslandOverlayService : Service() {
 
         // Apps Quick Launcher Controls
         setupAppsLauncherControls(exp)
+
+        // Navigation Controls
+        setupNavControls(exp)
+    }
+
+    private fun setupNavControls(exp: View) {
+        exp.findViewById<View>(R.id.btn_open_maps)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchPackageOrWeb("com.google.android.apps.maps", "https://maps.google.com")
+        }
+    }
+
+    private fun updateNavUI() {
+        val exp = expandedView ?: return
+        val distTv = exp.findViewById<TextView>(R.id.nav_distance_tv)
+        val manTv = exp.findViewById<TextView>(R.id.nav_maneuver_tv)
+        val etaTv = exp.findViewById<TextView>(R.id.nav_eta_tv)
+        val iconIv = exp.findViewById<ImageView>(R.id.nav_turn_icon)
+
+        if (isNavigating) {
+            distTv?.text = navDistance.ifEmpty { "Navigating" }
+            manTv?.text = navManeuver.ifEmpty { "Follow route" }
+            etaTv?.text = navEta.ifEmpty { "Google Maps Active" }
+            if (navIcon != null && !navIcon!!.isRecycled) {
+                iconIv?.clearColorFilter()
+                iconIv?.imageTintList = null
+                iconIv?.setImageBitmap(navIcon)
+            } else {
+                iconIv?.setImageResource(R.drawable.ic_navigation)
+                iconIv?.imageTintList = ColorStateList.valueOf(Color.parseColor("#4ADE80"))
+            }
+        } else {
+            distTv?.text = "No Active Navigation"
+            manTv?.text = "Start directions in Google Maps"
+            etaTv?.text = "Tap Maps button to plan a route"
+            iconIv?.setImageResource(R.drawable.ic_navigation)
+            iconIv?.imageTintList = ColorStateList.valueOf(Color.parseColor("#8E9099"))
+        }
     }
 
     private fun switchTab(tabIndex: Int) {
-        activeTab = tabIndex.coerceIn(0, 4)
+        activeTab = tabIndex.coerceIn(0, 5)
         val exp = expandedView ?: return
         vibrateTick()
         triggerExpandedAura(parseAccentColor(), 900L)
@@ -686,14 +793,16 @@ class IslandOverlayService : Service() {
             exp.findViewById<TextView>(R.id.tab_system),
             exp.findViewById<TextView>(R.id.tab_focus),
             exp.findViewById<TextView>(R.id.tab_tools),
-            exp.findViewById<TextView>(R.id.tab_apps)
+            exp.findViewById<TextView>(R.id.tab_apps),
+            exp.findViewById<TextView>(R.id.tab_nav)
         )
         val pages = listOf(
             exp.findViewById<View>(R.id.page_media),
             exp.findViewById<View>(R.id.page_system),
             exp.findViewById<View>(R.id.page_focus),
             exp.findViewById<View>(R.id.page_tools),
-            exp.findViewById<View>(R.id.page_apps)
+            exp.findViewById<View>(R.id.page_apps),
+            exp.findViewById<View>(R.id.page_nav)
         )
 
         for (i in tabs.indices) {
@@ -710,6 +819,7 @@ class IslandOverlayService : Service() {
             }
             2 -> updateFocusUI()
             3 -> updateToolsState()
+            5 -> updateNavUI()
         }
     }
 
@@ -1368,6 +1478,26 @@ class IslandOverlayService : Service() {
                 trailingTv?.visibility = View.VISIBLE
                 trailingTv?.text = "●"
                 trailingTv?.setTextColor(accentColor)
+            } else if (isNavigating && prefs.showMapsNavigation) {
+                // Navigation Active Mode (Google Maps directions)
+                val pad = (3 * resources.displayMetrics.density).toInt()
+                iconIv?.setPadding(pad, pad, pad, pad)
+                if (navIcon != null && !navIcon!!.isRecycled) {
+                    iconIv?.clearColorFilter()
+                    iconIv?.imageTintList = null
+                    iconIv?.setImageBitmap(navIcon)
+                } else {
+                    iconIv?.setImageResource(R.drawable.ic_navigation)
+                    iconIv?.imageTintList = ColorStateList.valueOf(Color.parseColor("#062E6F"))
+                }
+
+                val dist = if (navDistance.isNotBlank()) navDistance else "Turn"
+                val maneuver = if (navManeuver.isNotBlank()) " · $navManeuver" else ""
+                titleTv?.text = "$dist$maneuver"
+                visView?.visibility = View.GONE
+                trailingTv?.visibility = View.VISIBLE
+                trailingTv?.text = if (navEta.isNotBlank()) navEta.substringBefore("·").trim() else "🧭"
+                trailingTv?.setTextColor(Color.parseColor("#4ADE80"))
             } else if (isPlaying || (currentTitle.isNotEmpty() && currentTitle != "Nothing playing")) {
                 titleTv?.text = currentTitle
                 if (currentAlbumArt != null && !currentAlbumArt!!.isRecycled) {
@@ -1378,7 +1508,7 @@ class IslandOverlayService : Service() {
                 } else {
                     val pad = (4 * resources.displayMetrics.density).toInt()
                     iconIv?.setPadding(pad, pad, pad, pad)
-                    iconIv?.setImageResource(R.drawable.ic_music)
+                    iconIv?.setImageResource(if (isHeadsetPlugged) R.drawable.ic_headphones else R.drawable.ic_music)
                     iconIv?.imageTintList = ColorStateList.valueOf(Color.parseColor("#062E6F"))
                 }
 
@@ -1410,7 +1540,12 @@ class IslandOverlayService : Service() {
                 // Idle Mode: reset icon cleanly and show Clock & Battery %
                 val pad = (4 * resources.displayMetrics.density).toInt()
                 iconIv?.setPadding(pad, pad, pad, pad)
-                iconIv?.setImageResource(if (isTorchOn) R.drawable.ic_bolt else R.drawable.ic_music)
+                val iconRes = when {
+                    isTorchOn -> R.drawable.ic_bolt
+                    isHeadsetPlugged -> R.drawable.ic_headphones
+                    else -> R.drawable.ic_music
+                }
+                iconIv?.setImageResource(iconRes)
                 iconIv?.imageTintList = ColorStateList.valueOf(Color.parseColor("#062E6F"))
 
                 visView?.setPlaying(false)
@@ -1420,11 +1555,11 @@ class IslandOverlayService : Service() {
                 if (prefs.showIdleClockBattery) {
                     val clockStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(nowDate)
                     val batPct = getBatteryPercent()
-                    titleTv?.text = if (isTorchOn) "⚡ Torch Active" else clockStr
+                    titleTv?.text = if (isTorchOn) "⚡ Torch Active" else if (isHeadsetPlugged) "🎧 Headphones On" else clockStr
                     trailingTv?.text = "$batPct%"
                     trailingTv?.setTextColor(Color.parseColor("#7FD88F"))
                 } else {
-                    titleTv?.text = "Dynamic Island"
+                    titleTv?.text = if (isHeadsetPlugged) "🎧 Headphones Active" else "Dynamic Island"
                     trailingTv?.text = "●"
                     trailingTv?.setTextColor(accentColor)
                 }
@@ -1467,6 +1602,10 @@ class IslandOverlayService : Service() {
 
             playBtn?.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
             wavyBar?.setPlaybackState(currentPos, currentDur, isPlaying)
+
+            if (activeTab == 5) {
+                updateNavUI()
+            }
         }
     }
 
@@ -1504,6 +1643,7 @@ class IslandOverlayService : Service() {
         handler.removeCallbacksAndMessages(null)
         bgExecutor.shutdownNow()
         MediaStateBridge.removeListener(bridgeListener)
+        NavigationStateBridge.removeListener(navListener)
         try {
             cameraManager?.unregisterTorchCallback(torchCallback)
         } catch (e: Exception) {}

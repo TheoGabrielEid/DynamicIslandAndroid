@@ -122,11 +122,63 @@ class MediaNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         findActiveMediaController()
         dispatchMediaUpdate()
+        processNavigationNotification(sbn)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         findActiveMediaController()
         dispatchMediaUpdate()
+        if (sbn?.packageName == "com.google.android.apps.maps") {
+            NavigationStateBridge.clear()
+        }
+    }
+
+    private fun processNavigationNotification(sbn: StatusBarNotification?) {
+        if (sbn == null || sbn.packageName != "com.google.android.apps.maps") return
+        try {
+            val notification = sbn.notification ?: return
+            val extras = notification.extras ?: return
+
+            val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim() ?: ""
+            val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim() ?: ""
+            val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()?.trim() ?: ""
+
+            // Google Maps navigation notifications typically have ongoing=true and contain distance/eta info
+            val isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
+
+            if (isOngoing && (title.isNotEmpty() || text.isNotEmpty())) {
+                var maneuver = text
+                var distance = title
+                var eta = subText
+
+                // Often Google Maps sets: Title = "In 200 m", Text = "Turn right onto Main St", SubText = "14 min · 5:24 PM"
+                // Or: Title = "Turn right onto Main St", Text = "200 m · 14 min"
+                if (distance.contains("·") && !maneuver.contains("·")) {
+                    val temp = distance
+                    distance = maneuver
+                    maneuver = temp
+                }
+
+                var navIcon: Bitmap? = null
+                val largeIcon = notification.getLargeIcon()
+                if (largeIcon != null) {
+                    try {
+                        val d = largeIcon.loadDrawable(this)
+                        if (d is BitmapDrawable && d.bitmap != null) {
+                            navIcon = scaleBitmap(d.bitmap, 120)
+                        }
+                    } catch (e: Exception) {}
+                }
+
+                NavigationStateBridge.update(
+                    isNavigating = true,
+                    maneuver = maneuver.ifEmpty { "Navigating" },
+                    distance = distance,
+                    eta = eta,
+                    icon = navIcon
+                )
+            }
+        } catch (e: Exception) {}
     }
 
     fun executeTransportCommand(cmd: String): Boolean {

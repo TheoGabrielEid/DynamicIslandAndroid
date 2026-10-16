@@ -29,6 +29,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var switchAutoExpand: MaterialSwitch
     private lateinit var switchDoubleTap: MaterialSwitch
     private lateinit var switchLongPress: MaterialSwitch
+    private lateinit var switchMapsNav: MaterialSwitch
+    private lateinit var switchHeadset: MaterialSwitch
 
     private lateinit var sliderX: Slider
     private lateinit var sliderY: Slider
@@ -79,6 +81,8 @@ class MainActivity : AppCompatActivity() {
         switchAutoExpand = findViewById(R.id.switch_auto_expand)
         switchDoubleTap = findViewById(R.id.switch_double_tap)
         switchLongPress = findViewById(R.id.switch_long_press)
+        switchMapsNav = findViewById(R.id.switch_maps_nav)
+        switchHeadset = findViewById(R.id.switch_headset)
 
         sliderX = findViewById(R.id.slider_notch_x)
         sliderY = findViewById(R.id.slider_notch_y)
@@ -116,6 +120,8 @@ class MainActivity : AppCompatActivity() {
         switchAutoExpand.isChecked = prefs.autoExpandOnSong
         switchDoubleTap.isChecked = prefs.doubleTapPlayPause
         switchLongPress.isChecked = prefs.longPressFlashlight
+        switchMapsNav.isChecked = prefs.showMapsNavigation
+        switchHeadset.isChecked = prefs.showHeadsetConnected
 
         syncSlidersFromPrefs()
         updateThemeChipSelection()
@@ -202,6 +208,16 @@ class MainActivity : AppCompatActivity() {
 
         switchLongPress.setOnCheckedChangeListener { _, checked ->
             prefs.longPressFlashlight = checked
+            notifyServicePrefsChanged()
+        }
+
+        switchMapsNav.setOnCheckedChangeListener { _, checked ->
+            prefs.showMapsNavigation = checked
+            notifyServicePrefsChanged()
+        }
+
+        switchHeadset.setOnCheckedChangeListener { _, checked ->
+            prefs.showHeadsetConnected = checked
             notifyServicePrefsChanged()
         }
 
