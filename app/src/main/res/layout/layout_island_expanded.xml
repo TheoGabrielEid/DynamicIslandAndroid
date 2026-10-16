@@ -6,21 +6,106 @@
     android:layout_height="wrap_content"
     android:background="@drawable/bg_island_expanded"
     android:orientation="vertical"
-    android:padding="6dp">
+    android:paddingStart="8dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="6dp">
 
-    <!-- Main Unified Glassmorphic Media Card (Exact PC M3 Style) -->
+    <!-- Top Multi-Tab Pill Bar (PC Dynamic Island Style) -->
     <LinearLayout
-        android:id="@+id/media_main_card"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_marginBottom="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp">
+
+        <TextView
+            android:id="@+id/tab_media"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:background="@drawable/bg_tab_selected"
+            android:gravity="center"
+            android:paddingStart="11dp"
+            android:paddingEnd="11dp"
+            android:text="♫ Media"
+            android:textColor="@color/m3_on_surface"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tab_system"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/bg_tab_unselected"
+            android:gravity="center"
+            android:paddingStart="11dp"
+            android:paddingEnd="11dp"
+            android:text="◎ System"
+            android:textColor="@color/m3_muted"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tab_focus"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/bg_tab_unselected"
+            android:gravity="center"
+            android:paddingStart="11dp"
+            android:paddingEnd="11dp"
+            android:text="⏱ Focus"
+            android:textColor="@color/m3_muted"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tab_tools"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/bg_tab_unselected"
+            android:gravity="center"
+            android:paddingStart="11dp"
+            android:paddingEnd="11dp"
+            android:text="⚡ Tools"
+            android:textColor="@color/m3_muted"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btn_collapse"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:background="@drawable/bg_pill_button"
+            android:contentDescription="Collapse"
+            android:padding="5dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/m3_on_surface_var" />
+    </LinearLayout>
+
+    <!-- ==================== PAGE 1: MEDIA PLAYER ==================== -->
+    <LinearLayout
+        android:id="@+id/page_media"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_media_main_card"
         android:orientation="vertical"
         android:paddingStart="14dp"
-        android:paddingTop="12dp"
+        android:paddingTop="11dp"
         android:paddingEnd="14dp"
-        android:paddingBottom="12dp">
+        android:paddingBottom="11dp"
+        android:visibility="visible">
 
-        <!-- Row 1: Album Art + Track Metadata & Badge -->
+        <!-- Row 1: Album Art + Track Metadata & Visualizer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -29,8 +114,8 @@
 
             <ImageView
                 android:id="@+id/expanded_art"
-                android:layout_width="64dp"
-                android:layout_height="64dp"
+                android:layout_width="62dp"
+                android:layout_height="62dp"
                 android:background="@drawable/bg_album_art"
                 android:contentDescription="Album Art"
                 android:padding="12dp"
@@ -69,15 +154,10 @@
                         android:layout_height="1dp"
                         android:layout_weight="1" />
 
-                    <ImageButton
-                        android:id="@+id/btn_collapse"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:background="@drawable/bg_pill_button"
-                        android:contentDescription="Collapse"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_close"
-                        app:tint="@color/m3_on_surface_var" />
+                    <com.dynamicisland.app.view.WaveformVisualizerView
+                        android:id="@+id/expanded_visualizer"
+                        android:layout_width="56dp"
+                        android:layout_height="16dp" />
                 </LinearLayout>
 
                 <TextView
@@ -91,7 +171,7 @@
                     android:singleLine="true"
                     android:text="Nothing playing"
                     android:textColor="@color/m3_on_surface"
-                    android:textSize="16sp"
+                    android:textSize="15.5sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -112,8 +192,8 @@
         <com.dynamicisland.app.view.WavyProgressBar
             android:id="@+id/expanded_wavy_progress"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp" />
+            android:layout_height="34dp"
+            android:layout_marginTop="6dp" />
 
         <!-- Row 3: Hero Transport Controls + Frosted Volume Pill -->
         <LinearLayout
@@ -121,9 +201,8 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingTop="4dp">
+            android:paddingTop="3dp">
 
-            <!-- Transport Cluster -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -144,8 +223,8 @@
                     android:id="@+id/btn_play_pause"
                     android:layout_width="44dp"
                     android:layout_height="44dp"
-                    android:layout_marginStart="10dp"
-                    android:layout_marginEnd="10dp"
+                    android:layout_marginStart="9dp"
+                    android:layout_marginEnd="9dp"
                     android:background="@drawable/bg_play_btn"
                     android:contentDescription="Play or Pause"
                     android:padding="10dp"
@@ -168,7 +247,7 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
-            <!-- Sleek Frosted Volume Pill (Exact PC Style) -->
+            <!-- Frosted Volume Pill -->
             <LinearLayout
                 android:id="@+id/vol_pill"
                 android:layout_width="wrap_content"
@@ -181,8 +260,8 @@
 
                 <ImageButton
                     android:id="@+id/btn_vol_icon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:background="@android:color/transparent"
                     android:contentDescription="Volume"
                     android:src="@drawable/ic_volume"
@@ -190,10 +269,10 @@
 
                 <SeekBar
                     android:id="@+id/slider_volume"
-                    android:layout_width="86dp"
+                    android:layout_width="82dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
+                    android:layout_marginStart="3dp"
+                    android:layout_marginEnd="3dp"
                     android:max="100"
                     android:progress="70"
                     android:progressDrawable="@drawable/volume_progress"
@@ -207,12 +286,342 @@
                     android:gravity="end"
                     android:text="70%"
                     android:textColor="@color/m3_on_surface_var"
-                    android:textSize="11sp"
+                    android:textSize="10.5sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
         </LinearLayout>
 
     </LinearLayout>
+
+    <!-- ==================== PAGE 2: SYSTEM MONITOR ==================== -->
+    <LinearLayout
+        android:id="@+id/page_system"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_media_main_card"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <com.dynamicisland.app.view.RingGaugeView
+                android:id="@+id/gauge_ram"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <com.dynamicisland.app.view.RingGaugeView
+                android:id="@+id/gauge_battery"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <com.dynamicisland.app.view.RingGaugeView
+                android:id="@+id/gauge_storage"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <!-- Bottom Network & Telemetry Strip -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_volume_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:id="@+id/tv_sys_network"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:text="● Wi-Fi Connected"
+                android:textColor="@color/m3_green"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_sys_details"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:text="32°C · Uptime 4h"
+                android:textColor="@color/m3_on_surface_var"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ==================== PAGE 3: FOCUS TIMER ==================== -->
+    <LinearLayout
+        android:id="@+id/page_focus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_media_main_card"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_focus_status"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:background="@drawable/bg_app_badge"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="● POMODORO FOCUS"
+                android:textColor="@color/m3_tertiary"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tv_focus_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="25:00"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Preset Duration Chips -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/chip_5m"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tab_unselected"
+                android:gravity="center"
+                android:text="5 min"
+                android:textColor="@color/m3_on_surface_var"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/chip_15m"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tab_unselected"
+                android:gravity="center"
+                android:text="15 min"
+                android:textColor="@color/m3_on_surface_var"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/chip_25m"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tab_selected"
+                android:gravity="center"
+                android:text="25 min"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/chip_45m"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tab_unselected"
+                android:gravity="center"
+                android:text="45 min"
+                android:textColor="@color/m3_on_surface_var"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Start / Pause & Reset Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btn_focus_toggle"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1.5"
+                android:background="@drawable/bg_tool_tile_active"
+                android:gravity="center"
+                android:text="▶ Start Focus"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_focus_reset"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="↺ Reset"
+                android:textColor="@color/m3_on_surface_var"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ==================== PAGE 4: QUICK TOOLS ==================== -->
+    <LinearLayout
+        android:id="@+id/page_tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_media_main_card"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="gone">
+
+        <!-- Row 1 of Tools -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tile_torch"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="⚡ Torch Off"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tile_ringer"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="🔔 Sound"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tile_camera"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="📷 Camera"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Row 2 of Tools -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tile_calc"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="🧮 Calc"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tile_alarms"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="⏰ Clock"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tile_settings"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tool_tile"
+                android:gravity="center"
+                android:text="⚙ Island"
+                android:textColor="@color/m3_primary"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Bottom Handle Pill (Swipe Up or Tap to Collapse) -->
+    <FrameLayout
+        android:id="@+id/bottom_grabber_area"
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:layout_marginTop="2dp">
+
+        <View
+            android:layout_width="38dp"
+            android:layout_height="3.5dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_app_badge" />
+    </FrameLayout>
 
 </LinearLayout>

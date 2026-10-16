@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -22,13 +23,24 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlay: Button
     private lateinit var btnNotification: Button
 
+    private lateinit var switchIdleClock: MaterialSwitch
+    private lateinit var switchAutoExpand: MaterialSwitch
+    private lateinit var switchDoubleTap: MaterialSwitch
+    private lateinit var switchLongPress: MaterialSwitch
+
     private lateinit var sliderX: Slider
     private lateinit var sliderY: Slider
     private lateinit var sliderW: Slider
+    private lateinit var sliderH: Slider
     private lateinit var lblX: TextView
     private lateinit var lblY: TextView
     private lateinit var lblW: TextView
+    private lateinit var lblH: TextView
+    private lateinit var btnResetPos: Button
     private lateinit var btnTest: Button
+    private lateinit var btnTestCharging: Button
+
+    private lateinit var themeChips: List<Pair<TextView, String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +55,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (isNotificationServiceEnabled()) {
+            try {
+                NotificationListenerService.requestRebind(
+                    ComponentName(this, MediaNotificationListener::class.java)
+                )
+            } catch (e: Exception) {}
+        }
         updateUIState()
     }
 
@@ -52,21 +71,58 @@ class MainActivity : AppCompatActivity() {
         btnOverlay = findViewById(R.id.btn_perm_overlay)
         btnNotification = findViewById(R.id.btn_perm_notification)
 
+        switchIdleClock = findViewById(R.id.switch_idle_clock)
+        switchAutoExpand = findViewById(R.id.switch_auto_expand)
+        switchDoubleTap = findViewById(R.id.switch_double_tap)
+        switchLongPress = findViewById(R.id.switch_long_press)
+
         sliderX = findViewById(R.id.slider_notch_x)
         sliderY = findViewById(R.id.slider_notch_y)
         sliderW = findViewById(R.id.slider_island_w)
+        sliderH = findViewById(R.id.slider_island_h)
 
         lblX = findViewById(R.id.lbl_notch_x)
         lblY = findViewById(R.id.lbl_notch_y)
         lblW = findViewById(R.id.lbl_island_w)
+        lblH = findViewById(R.id.lbl_island_h)
+
+        btnResetPos = findViewById(R.id.btn_reset_pos)
         btnTest = findViewById(R.id.btn_test_island)
+        btnTestCharging = findViewById(R.id.btn_test_charging)
 
-        // Load saved positions
-        sliderX.value = prefs.notchXOffset.toFloat()
-        sliderY.value = prefs.notchYOffset.toFloat()
-        sliderW.value = prefs.compactWidth.toFloat()
+        themeChips = listOf(
+            findViewById<TextView>(R.id.theme_periwinkle) to "#A8C7FA",
+            findViewById<TextView>(R.id.theme_lavender) to "#E7B9F5",
+            findViewById<TextView>(R.id.theme_emerald) to "#7FD88F",
+            findViewById<TextView>(R.id.theme_sunset) to "#FFB86C",
+            findViewById<TextView>(R.id.theme_cyan) to "#6FD8F5"
+        )
 
+        // Load saved preferences
+        switchIdleClock.isChecked = prefs.showIdleClockBattery
+        switchAutoExpand.isChecked = prefs.autoExpandOnSong
+        switchDoubleTap.isChecked = prefs.doubleTapPlayPause
+        switchLongPress.isChecked = prefs.longPressFlashlight
+
+        syncSlidersFromPrefs()
+        updateThemeChipSelection()
+    }
+
+    private fun syncSlidersFromPrefs() {
+        sliderX.value = prefs.notchXOffset.toFloat().coerceIn(-140f, 140f)
+        sliderY.value = prefs.notchYOffset.toFloat().coerceIn(0f, 60f)
+        val wVal = (prefs.compactWidth / 2) * 2
+        sliderW.value = wVal.toFloat().coerceIn(110f, 260f)
+        sliderH.value = prefs.compactHeight.toFloat().coerceIn(28f, 52f)
         updateSliderLabels()
+    }
+
+    private fun updateThemeChipSelection() {
+        val currentHex = prefs.accentColorHex
+        for ((tv, hex) in themeChips) {
+            val selected = hex.equals(currentHex, ignoreCase = true)
+            tv.setBackgroundResource(if (selected) R.drawable.bg_tab_selected else R.drawable.bg_tab_unselected)
+        }
     }
 
     private fun setupListeners() {
@@ -89,7 +145,7 @@ class MainActivity : AppCompatActivity() {
             if (isChecked) {
                 if (!checkPermissions()) {
                     switchService.isChecked = false
-                    Toast.makeText(this, "Please grant both permissions first!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Please grant Overlay and Notification Access first!", Toast.LENGTH_LONG).show()
                     return@setOnCheckedChangeListener
                 }
                 startIslandService()
@@ -99,59 +155,114 @@ class MainActivity : AppCompatActivity() {
             updateUIState()
         }
 
+        for ((tv, hex) in themeChips) {
+            tv.setOnClickListener {
+                prefs.accentColorHex = hex
+                updateThemeChipSelection()
+                notifyServicePrefsChanged()
+            }
+        }
+
+        switchIdleClock.setOnCheckedChangeListener { _, checked ->
+            prefs.showIdleClockBattery = checked
+            notifyServicePrefsChanged()
+        }
+
+        switchAutoExpand.setOnCheckedChangeListener { _, checked ->
+            prefs.autoExpandOnSong = checked
+            notifyServicePrefsChanged()
+        }
+
+        switchDoubleTap.setOnCheckedChangeListener { _, checked ->
+            prefs.doubleTapPlayPause = checked
+            notifyServicePrefsChanged()
+        }
+
+        switchLongPress.setOnCheckedChangeListener { _, checked ->
+            prefs.longPressFlashlight = checked
+            notifyServicePrefsChanged()
+        }
+
         sliderX.addOnChangeListener { _, value, _ ->
             prefs.notchXOffset = value.toInt()
             updateSliderLabels()
-            restartServiceIfRunning()
+            notifyServicePrefsChanged()
         }
 
         sliderY.addOnChangeListener { _, value, _ ->
             prefs.notchYOffset = value.toInt()
             updateSliderLabels()
-            restartServiceIfRunning()
+            notifyServicePrefsChanged()
         }
 
         sliderW.addOnChangeListener { _, value, _ ->
             prefs.compactWidth = value.toInt()
             updateSliderLabels()
-            restartServiceIfRunning()
+            notifyServicePrefsChanged()
+        }
+
+        sliderH.addOnChangeListener { _, value, _ ->
+            prefs.compactHeight = value.toInt()
+            updateSliderLabels()
+            notifyServicePrefsChanged()
+        }
+
+        btnResetPos.setOnClickListener {
+            prefs.resetPositionDefaults()
+            syncSlidersFromPrefs()
+            notifyServicePrefsChanged()
+            Toast.makeText(this, "Position reset to default!", Toast.LENGTH_SHORT).show()
         }
 
         btnTest.setOnClickListener {
             if (!IslandOverlayService.isRunning) {
+                if (checkPermissions()) {
+                    startIslandService()
+                    updateUIState()
+                } else {
+                    Toast.makeText(this, "Enable Dynamic Island first to test!", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+            }
+            MediaStateBridge.update(
+                title = "Starboy",
+                artist = "The Weeknd · Daft Punk",
+                appName = "Spotify",
+                isPlaying = true,
+                positionMs = 64000L,
+                durationMs = 230000L,
+                albumArt = null
+            )
+            Toast.makeText(this, "Simulating playing track on Dynamic Island!", Toast.LENGTH_SHORT).show()
+        }
+
+        btnTestCharging.setOnClickListener {
+            if (!IslandOverlayService.isRunning) {
                 Toast.makeText(this, "Enable Dynamic Island first to test!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            // Send simulation test broadcast
-            val testIntent = Intent(IslandOverlayService.ACTION_UPDATE_MEDIA).apply {
-                putExtra(IslandOverlayService.EXTRA_TITLE, "Starboy")
-                putExtra(IslandOverlayService.EXTRA_ARTIST, "The Weeknd · Daft Punk")
-                putExtra(IslandOverlayService.EXTRA_PLAYING, true)
-                putExtra(IslandOverlayService.EXTRA_POS, 45000L)
-                putExtra(IslandOverlayService.EXTRA_DUR, 230000L)
-                putExtra(IslandOverlayService.EXTRA_APP, "Spotify")
+            val i = Intent(IslandOverlayService.ACTION_BATTERY).apply {
+                setPackage(packageName)
+                putExtra(IslandOverlayService.EXTRA_CHARGING, true)
+                putExtra("EXTRA_BATTERY_PCT", 88)
             }
-            sendBroadcast(testIntent)
-            Toast.makeText(this, "Simulating playing track on Dynamic Island!", Toast.LENGTH_SHORT).show()
+            sendBroadcast(i)
         }
     }
 
     private fun updateSliderLabels() {
-        lblX.text = "Horizontal Offset: ${prefs.notchXOffset} dp"
-        lblY.text = "Top Margin: ${prefs.notchYOffset} dp"
-        lblW.text = "Compact Width: ${prefs.compactWidth} dp"
+        lblX.text = "Horizontal Offset (X): ${prefs.notchXOffset} dp"
+        lblY.text = "Top Margin (Y): ${prefs.notchYOffset} dp"
+        lblW.text = "Compact Pill Width: ${prefs.compactWidth} dp"
+        lblH.text = "Compact Pill Height: ${prefs.compactHeight} dp"
     }
 
     private fun checkPermissions(): Boolean {
         val overlayGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(this)
-        } else {
-            true
-        }
+        } else true
 
-        val notificationGranted = isNotificationServiceEnabled()
-
-        return overlayGranted && notificationGranted
+        return overlayGranted && isNotificationServiceEnabled()
     }
 
     private fun isNotificationServiceEnabled(): Boolean {
@@ -166,19 +277,26 @@ class MainActivity : AppCompatActivity() {
 
         val notifOk = isNotificationServiceEnabled()
 
-        btnOverlay.text = if (overlayOk) getString(R.string.granted) else getString(R.string.grant_permission)
+        btnOverlay.text = if (overlayOk) "✓ Granted" else getString(R.string.grant_permission)
         btnOverlay.isEnabled = !overlayOk
 
-        btnNotification.text = if (notifOk) getString(R.string.granted) else getString(R.string.grant_permission)
+        btnNotification.text = if (notifOk) "✓ Granted" else getString(R.string.grant_permission)
         btnNotification.isEnabled = !notifOk
 
         val running = IslandOverlayService.isRunning
         switchService.isChecked = running
-        tvStatus.text = if (running) getString(R.string.service_running) else getString(R.string.service_stopped)
+        tvStatus.text = if (running) "● Active — Tap the top pill anytime to expand" else getString(R.string.service_stopped)
     }
 
     private fun startIslandService() {
         prefs.isServiceEnabled = true
+        if (isNotificationServiceEnabled()) {
+            try {
+                NotificationListenerService.requestRebind(
+                    ComponentName(this, MediaNotificationListener::class.java)
+                )
+            } catch (e: Exception) {}
+        }
         val intent = Intent(this, IslandOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
@@ -193,9 +311,12 @@ class MainActivity : AppCompatActivity() {
         stopService(intent)
     }
 
-    private fun restartServiceIfRunning() {
+    private fun notifyServicePrefsChanged() {
         if (IslandOverlayService.isRunning) {
-            startIslandService()
+            val intent = Intent(IslandOverlayService.ACTION_REFRESH_PREFS).apply {
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
         }
     }
 }

@@ -12,32 +12,61 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- App Hero Header -->
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Hero Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Dynamic Island"
-            android:textColor="@color/island_text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Floating punch-hole capsule for Android with wavy music controls."
-            android:textColor="@color/island_text_secondary"
-            android:textSize="14sp" />
+            <FrameLayout
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:background="@drawable/bg_compact_badge">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Logo"
+                    android:src="@drawable/ic_music"
+                    app:tint="@color/m3_on_primary" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Dynamic Island Pro"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Material 3 Expressive · Media · System · Focus · Tools"
+                    android:textColor="@color/m3_on_surface_var"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- Master Enable Switch Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="22dp"
             app:cardBackgroundColor="#14FFFFFF"
-            app:cardCornerRadius="20dp"
-            app:strokeColor="#24FFFFFF"
+            app:cardCornerRadius="22dp"
+            app:strokeColor="#28FFFFFF"
             app:strokeWidth="1dp">
 
             <LinearLayout
@@ -57,7 +86,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/enable_service"
-                        android:textColor="@color/island_text_primary"
+                        android:textColor="@color/m3_on_surface"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -65,9 +94,9 @@
                         android:id="@+id/tv_service_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="3dp"
                         android:text="@string/service_stopped"
-                        android:textColor="@color/island_text_secondary"
+                        android:textColor="@color/m3_on_surface_var"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -82,19 +111,20 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="24dp"
+            android:letterSpacing="0.08"
             android:text="REQUIRED PERMISSIONS"
-            android:textColor="@color/island_primary"
-            android:textSize="12sp"
+            android:textColor="@color/m3_primary"
+            android:textSize="11.5sp"
             android:textStyle="bold" />
 
         <!-- Permission 1: Overlay -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             app:cardBackgroundColor="#0DFFFFFF"
-            app:cardCornerRadius="16dp"
+            app:cardCornerRadius="18dp"
             app:strokeColor="#1FFFFFFF"
             app:strokeWidth="1dp">
 
@@ -103,7 +133,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="16dp">
+                android:padding="15dp">
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -115,7 +145,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/permission_overlay_title"
-                        android:textColor="@color/island_text_primary"
+                        android:textColor="@color/m3_on_surface"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -124,7 +154,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/permission_overlay_desc"
-                        android:textColor="@color/island_text_secondary"
+                        android:textColor="@color/m3_on_surface_var"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -143,7 +173,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             app:cardBackgroundColor="#0DFFFFFF"
-            app:cardCornerRadius="16dp"
+            app:cardCornerRadius="18dp"
             app:strokeColor="#1FFFFFFF"
             app:strokeWidth="1dp">
 
@@ -152,7 +182,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="16dp">
+                android:padding="15dp">
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -164,7 +194,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/permission_notification_title"
-                        android:textColor="@color/island_text_primary"
+                        android:textColor="@color/m3_on_surface"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -173,7 +203,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/permission_notification_desc"
-                        android:textColor="@color/island_text_secondary"
+                        android:textColor="@color/m3_on_surface_var"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -186,22 +216,180 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Notch & Island Geometry Calibration -->
+        <!-- Accent Color Theme Picker -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/notch_settings_title"
-            android:textColor="@color/island_primary"
-            android:textSize="12sp"
+            android:layout_marginTop="24dp"
+            android:letterSpacing="0.08"
+            android:text="ACCENT COLOR THEME"
+            android:textColor="@color/m3_primary"
+            android:textSize="11.5sp"
             android:textStyle="bold" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             app:cardBackgroundColor="#0DFFFFFF"
-            app:cardCornerRadius="16dp"
+            app:cardCornerRadius="18dp"
+            app:strokeColor="#1FFFFFFF"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <TextView
+                    android:id="@+id/theme_periwinkle"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_selected"
+                    android:gravity="center"
+                    android:text="● Blue"
+                    android:textColor="#A8C7FA"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/theme_lavender"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_unselected"
+                    android:gravity="center"
+                    android:text="● Rose"
+                    android:textColor="#E7B9F5"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/theme_emerald"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_unselected"
+                    android:gravity="center"
+                    android:text="● Mint"
+                    android:textColor="#7FD88F"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/theme_sunset"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_unselected"
+                    android:gravity="center"
+                    android:text="● Gold"
+                    android:textColor="#FFB86C"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/theme_cyan"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_unselected"
+                    android:gravity="center"
+                    android:text="● Cyan"
+                    android:textColor="#6FD8F5"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Smart Features & Gestures -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:letterSpacing="0.08"
+            android:text="SMART FEATURES &amp; GESTURES"
+            android:textColor="@color/m3_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            app:cardBackgroundColor="#0DFFFFFF"
+            app:cardCornerRadius="18dp"
+            app:strokeColor="#1FFFFFFF"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_idle_clock"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Show Live Clock &amp; Battery % when Idle"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_auto_expand"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Show Song Toast on Track Change"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_double_tap"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Double-Tap Pill to Play / Pause Music"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_long_press"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Long-Press Pill to Toggle Flashlight"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Notch & Island Geometry Calibration -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:letterSpacing="0.08"
+            android:text="CAMERA CUTOUT &amp; SIZE CALIBRATION"
+            android:textColor="@color/m3_primary"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            app:cardBackgroundColor="#0DFFFFFF"
+            app:cardCornerRadius="18dp"
             app:strokeColor="#1FFFFFFF"
             app:strokeWidth="1dp">
 
@@ -211,73 +399,113 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- Horizontal X Offset -->
                 <TextView
                     android:id="@+id/lbl_notch_x"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Horizontal Offset: 0 dp"
-                    android:textColor="@color/island_text_primary"
+                    android:text="Horizontal Offset (X): 0 dp"
+                    android:textColor="@color/m3_on_surface"
                     android:textSize="13sp" />
 
                 <com.google.android.material.slider.Slider
                     android:id="@+id/slider_notch_x"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:stepSize="1"
                     android:value="0"
-                    android:valueFrom="-120"
-                    android:valueTo="120"
-                    android:stepSize="1" />
+                    android:valueFrom="-140"
+                    android:valueTo="140" />
 
-                <!-- Vertical Y Margin -->
                 <TextView
                     android:id="@+id/lbl_notch_y"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Top Margin: 12 dp"
-                    android:textColor="@color/island_text_primary"
+                    android:layout_marginTop="6dp"
+                    android:text="Top Margin (Y): 8 dp"
+                    android:textColor="@color/m3_on_surface"
                     android:textSize="13sp" />
 
                 <com.google.android.material.slider.Slider
                     android:id="@+id/slider_notch_y"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:value="12"
+                    android:stepSize="1"
+                    android:value="8"
                     android:valueFrom="0"
-                    android:valueTo="60"
-                    android:stepSize="1" />
+                    android:valueTo="60" />
 
-                <!-- Width -->
                 <TextView
                     android:id="@+id/lbl_island_w"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Compact Width: 130 dp"
-                    android:textColor="@color/island_text_primary"
+                    android:layout_marginTop="6dp"
+                    android:text="Compact Pill Width: 170 dp"
+                    android:textColor="@color/m3_on_surface"
                     android:textSize="13sp" />
 
                 <com.google.android.material.slider.Slider
                     android:id="@+id/slider_island_w"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:value="130"
-                    android:valueFrom="90"
-                    android:valueTo="220"
-                    android:stepSize="2" />
+                    android:stepSize="2"
+                    android:value="170"
+                    android:valueFrom="110"
+                    android:valueTo="260" />
+
+                <TextView
+                    android:id="@+id/lbl_island_h"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Compact Pill Height: 36 dp"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/slider_island_h"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="36"
+                    android:valueFrom="28"
+                    android:valueTo="52" />
+
+                <Button
+                    android:id="@+id/btn_reset_pos"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:text="↺ Reset Position Defaults"
+                    android:textColor="@color/m3_primary" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Test Island Button -->
-        <Button
-            android:id="@+id/btn_test_island"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+        <!-- Test & Simulation Deck -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="32dp"
-            android:text="Simulate Test Notification / Music" />
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="36dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_test_island"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="♫ Test Music" />
+
+            <Button
+                android:id="@+id/btn_test_charging"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⚡ Test Charging" />
+        </LinearLayout>
 
     </LinearLayout>
 

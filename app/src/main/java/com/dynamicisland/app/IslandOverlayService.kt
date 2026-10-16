@@ -1,6 +1,6 @@
 package com.dynamicisland.app
 
-import android.animation.ValueAnimator
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,25 +11,48 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.PixelFormat
+import android.hardware.camera2.CameraManager
+import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.graphics.Color
-import android.media.AudioManager
+import android.os.StatFs
+import android.os.SystemClock
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.provider.AlarmClock
+import android.provider.MediaStore
+import android.view.GestureDetector
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import com.dynamicisland.app.view.RingGaugeView
+import com.dynamicisland.app.view.WaveformVisualizerView
 import com.dynamicisland.app.view.WavyProgressBar
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class IslandOverlayService : Service() {
 
@@ -38,6 +61,7 @@ class IslandOverlayService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_UPDATE_MEDIA = "ACTION_UPDATE_MEDIA"
         const val ACTION_BATTERY = "ACTION_BATTERY"
+        const val ACTION_REFRESH_PREFS = "ACTION_REFRESH_PREFS"
 
         const val EXTRA_TITLE = "EXTRA_TITLE"
         const val EXTRA_ARTIST = "EXTRA_ARTIST"
@@ -61,36 +85,113 @@ class IslandOverlayService : Service() {
     private var expandedParams: WindowManager.LayoutParams? = null
 
     private var isExpanded: Boolean = false
+    private var activeTab: Int = 0 // 0=Media, 1=System, 2=Focus, 3=Tools
+
     private val handler = Handler(Looper.getMainLooper())
     private var collapseRunnable: Runnable? = null
 
-    // Current media state
+    // Media state
     private var currentTitle: String = "Nothing playing"
-    private var currentArtist: String = "Ready"
+    private var currentArtist: String = "Play music on Spotify, YouTube or Chrome"
     private var isPlaying: Boolean = false
     private var currentPos: Long = 0L
     private var currentDur: Long = 0L
     private var currentApp: String = ""
-    private var albumArt: Bitmap? = null
+    private var currentAlbumArt: Bitmap? = null
+    private var lastTrackTitle: String = ""
+
+    // Focus Pomodoro Timer state
+    private var focusTotalSec: Int = 25 * 60
+    private var focusRemainingSec: Int = 25 * 60
+    private var focusRunning: Boolean = false
+
+    // Flashlight / Torch state
+    private var isTorchOn: Boolean = false
+    private var cameraId: String? = null
+    private var cameraManager: CameraManager? = null
+
+    // Toast override state
+    private var toastActiveUntil: Long = 0L
+    private var toastMessage: String = ""
+
+    private val bridgeListener: (MediaStateBridge.MediaSnapshot) -> Unit = { snap ->
+        val trackChanged = snap.isPlaying && snap.title != lastTrackTitle && snap.title != "Nothing playing"
+        if (snap.title != "Nothing playing") {
+            lastTrackTitle = snap.title
+        }
+        currentTitle = snap.title
+        currentArtist = snap.artist
+        currentApp = snap.appName
+        isPlaying = snap.isPlaying
+        currentPos = snap.livePositionMs()
+        currentDur = snap.durationMs
+        currentAlbumArt = snap.albumArt
+        updateViews()
+
+        if (trackChanged && prefs.autoExpandOnSong && !isExpanded) {
+            showToastPill("♫ ${snap.title}", R.drawable.ic_music)
+        }
+    }
+
+    private val torchCallback = object : CameraManager.TorchCallback() {
+        override fun onTorchModeChanged(camId: String, enabled: Boolean) {
+            if (camId == cameraId) {
+                isTorchOn = enabled
+                updateToolsState()
+                updateViews()
+            }
+        }
+    }
+
+    private val tickRunnable = object : Runnable {
+        override fun run() {
+            // 1. Update Focus Timer if running
+            if (focusRunning && focusRemainingSec > 0) {
+                focusRemainingSec--
+                if (focusRemainingSec <= 0) {
+                    focusRunning = false
+                    vibrateAlert()
+                    showToastPill("🎉 Focus Complete!", R.drawable.ic_music)
+                }
+                updateFocusUI()
+            }
+
+            // 2. Refresh live media progress & system stats
+            if (isPlaying) {
+                currentPos = MediaStateBridge.current.livePositionMs()
+            }
+            if (isExpanded && activeTab == 1) {
+                updateSystemMetrics()
+            }
+            updateViews()
+
+            handler.postDelayed(this, 1000L)
+        }
+    }
 
     private val mediaUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
             when (intent.action) {
                 ACTION_UPDATE_MEDIA -> {
-                    currentTitle = intent.getStringExtra(EXTRA_TITLE) ?: "Now Playing"
-                    currentArtist = intent.getStringExtra(EXTRA_ARTIST) ?: ""
-                    isPlaying = intent.getBooleanExtra(EXTRA_PLAYING, false)
-                    currentPos = intent.getLongExtra(EXTRA_POS, 0L)
-                    currentDur = intent.getLongExtra(EXTRA_DUR, 0L)
-                    currentApp = intent.getStringExtra(EXTRA_APP) ?: ""
-                    updateViews()
+                    val title = intent.getStringExtra(EXTRA_TITLE) ?: "Now Playing"
+                    val artist = intent.getStringExtra(EXTRA_ARTIST) ?: ""
+                    val playing = intent.getBooleanExtra(EXTRA_PLAYING, false)
+                    val pos = intent.getLongExtra(EXTRA_POS, 0L)
+                    val dur = intent.getLongExtra(EXTRA_DUR, 0L)
+                    val app = intent.getStringExtra(EXTRA_APP) ?: ""
+                    MediaStateBridge.update(title, artist, app, playing, pos, dur, currentAlbumArt)
                 }
                 ACTION_BATTERY -> {
                     val charging = intent.getBooleanExtra(EXTRA_CHARGING, false)
+                    val pct = intent.getIntExtra("EXTRA_BATTERY_PCT", getBatteryPercent())
                     if (charging) {
-                        showToastPill("Charging", R.drawable.ic_bolt)
+                        showToastPill("⚡ Charging $pct%", R.drawable.ic_bolt)
                     }
+                }
+                ACTION_REFRESH_PREFS -> {
+                    applyWindowLayoutUpdates()
+                    updateViews()
                 }
             }
         }
@@ -104,9 +205,12 @@ class IslandOverlayService : Service() {
 
         startForeground(1001, createForegroundNotification())
 
+        initFlashlight()
+
         val filter = IntentFilter().apply {
             addAction(ACTION_UPDATE_MEDIA)
             addAction(ACTION_BATTERY)
+            addAction(ACTION_REFRESH_PREFS)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(mediaUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -115,6 +219,39 @@ class IslandOverlayService : Service() {
         }
 
         setupOverlayViews()
+        MediaStateBridge.addListener(bridgeListener)
+        handler.post(tickRunnable)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        applyWindowLayoutUpdates()
+        updateViews()
+        return START_STICKY
+    }
+
+    private fun initFlashlight() {
+        try {
+            cameraManager = getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+            cameraId = cameraManager?.cameraIdList?.firstOrNull()
+            cameraManager?.registerTorchCallback(torchCallback, handler)
+        } catch (e: Exception) {
+            // Device may not have flash
+        }
+    }
+
+    private fun toggleFlashlight() {
+        val cm = cameraManager ?: return
+        val id = cameraId ?: return
+        try {
+            val nextState = !isTorchOn
+            cm.setTorchMode(id, nextState)
+            isTorchOn = nextState
+            vibrateTick()
+            showToastPill(if (isTorchOn) "⚡ Flashlight ON" else "Flashlight OFF", R.drawable.ic_bolt)
+            updateToolsState()
+        } catch (e: Exception) {
+            // Ignore torch error
+        }
     }
 
     private fun createForegroundNotification(): Notification {
@@ -140,7 +277,7 @@ class IslandOverlayService : Service() {
 
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Dynamic Island Active")
-            .setContentText("Tap to configure notch position and options")
+            .setContentText("Tap to customize position, themes, and features")
             .setSmallIcon(R.drawable.ic_music)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -159,13 +296,15 @@ class IslandOverlayService : Service() {
                 or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                 or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
 
-        // 1. Setup Compact Pill View
-        compactView = LayoutInflater.from(this).inflate(R.layout.layout_island_compact, null)
         val density = resources.displayMetrics.density
         val pillWidthPx = (prefs.compactWidth * density).toInt()
         val pillHeightPx = (prefs.compactHeight * density).toInt()
         val pillYPx = (prefs.notchYOffset * density).toInt()
         val pillXPx = (prefs.notchXOffset * density).toInt()
+
+        // 1. Compact Pill View
+        compactView = LayoutInflater.from(this).inflate(R.layout.layout_island_compact, null)
+        compactView?.findViewById<WaveformVisualizerView>(R.id.compact_visualizer)?.barCount = 4
 
         compactParams = WindowManager.LayoutParams(
             pillWidthPx,
@@ -179,11 +318,9 @@ class IslandOverlayService : Service() {
             y = pillYPx
         }
 
-        compactView?.setOnClickListener {
-            expandIsland()
-        }
+        setupCompactGestures()
 
-        // 2. Setup Expanded Card View
+        // 2. Expanded Multi-Tab View
         expandedView = LayoutInflater.from(this).inflate(R.layout.layout_island_expanded, null)
         val screenWidth = resources.displayMetrics.widthPixels
         val expandedWidth = (screenWidth * 0.94f).toInt()
@@ -202,63 +339,155 @@ class IslandOverlayService : Service() {
 
         setupExpandedControls()
 
-        // Attach compact view initially
         windowManager.addView(compactView, compactParams)
         updateViews()
+    }
+
+    private fun applyWindowLayoutUpdates() {
+        val density = resources.displayMetrics.density
+        val pillWidthPx = (prefs.compactWidth * density).toInt()
+        val pillHeightPx = (prefs.compactHeight * density).toInt()
+        val pillYPx = (prefs.notchYOffset * density).toInt()
+        val pillXPx = (prefs.notchXOffset * density).toInt()
+
+        compactParams?.let { p ->
+            p.width = pillWidthPx
+            p.height = pillHeightPx
+            p.x = pillXPx
+            p.y = pillYPx
+            if (compactView?.parent != null) {
+                try {
+                    windowManager.updateViewLayout(compactView, p)
+                } catch (e: Exception) {}
+            }
+        }
+        expandedParams?.let { p ->
+            p.y = pillYPx
+            if (expandedView?.parent != null) {
+                try {
+                    windowManager.updateViewLayout(expandedView, p)
+                } catch (e: Exception) {}
+            }
+        }
+    }
+
+    private fun setupCompactGestures() {
+        val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                compactView?.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                expandIsland()
+                return true
+            }
+
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (prefs.doubleTapPlayPause) {
+                    compactView?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    MediaStateBridge.playOrPause(this@IslandOverlayService)
+                    showToastPill(if (MediaStateBridge.current.isPlaying) "▶ Playing" else "⏸ Paused", R.drawable.ic_music)
+                } else {
+                    expandIsland()
+                }
+                return true
+            }
+
+            override fun onLongPress(e: MotionEvent) {
+                if (prefs.longPressFlashlight) {
+                    compactView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    toggleFlashlight()
+                } else {
+                    expandIsland()
+                }
+            }
+        })
+
+        compactView?.setOnTouchListener { _, event ->
+            detector.onTouchEvent(event)
+            true
+        }
     }
 
     private fun setupExpandedControls() {
         val exp = expandedView ?: return
 
+        // Clip Album Art to rounded 14dp corners
+        val artIv = exp.findViewById<ImageView>(R.id.expanded_art)
+        artIv?.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                val radius = 14f * resources.displayMetrics.density
+                outline.setRoundRect(0, 0, view.width, view.height, radius)
+            }
+        }
+        artIv?.clipToOutline = true
+
+        exp.findViewById<WaveformVisualizerView>(R.id.expanded_visualizer)?.barCount = 10
+
+        // Tab Navigation
+        val tabMedia = exp.findViewById<TextView>(R.id.tab_media)
+        val tabSystem = exp.findViewById<TextView>(R.id.tab_system)
+        val tabFocus = exp.findViewById<TextView>(R.id.tab_focus)
+        val tabTools = exp.findViewById<TextView>(R.id.tab_tools)
+
+        tabMedia?.setOnClickListener { switchTab(0) }
+        tabSystem?.setOnClickListener { switchTab(1) }
+        tabFocus?.setOnClickListener { switchTab(2) }
+        tabTools?.setOnClickListener { switchTab(3) }
+
+        // Collapse button & bottom grabber swipe/tap
         exp.findViewById<ImageButton>(R.id.btn_collapse)?.setOnClickListener {
             collapseIsland()
         }
+        exp.findViewById<View>(R.id.bottom_grabber_area)?.setOnClickListener {
+            collapseIsland()
+        }
 
+        // Media Transport Controls
         exp.findViewById<ImageButton>(R.id.btn_play_pause)?.setOnClickListener {
-            sendMediaKey(if (isPlaying) "pause" else "play")
-            isPlaying = !isPlaying
-            updateViews()
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            MediaStateBridge.playOrPause(this)
+            resetAutoCollapseTimer()
         }
 
         exp.findViewById<ImageButton>(R.id.btn_next)?.setOnClickListener {
-            sendMediaKey("next")
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            MediaStateBridge.next(this)
+            resetAutoCollapseTimer()
         }
 
         exp.findViewById<ImageButton>(R.id.btn_prev)?.setOnClickListener {
-            sendMediaKey("prev")
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            MediaStateBridge.previous(this)
+            resetAutoCollapseTimer()
         }
 
         val wavyBar = exp.findViewById<WavyProgressBar>(R.id.expanded_wavy_progress)
         wavyBar?.onSeekListener = { frac ->
             if (currentDur > 0) {
                 val seekMs = (frac * currentDur).toLong()
-                val seekIntent = Intent(MediaNotificationListener.ACTION_SEEK).apply {
-                    putExtra("position_ms", seekMs)
-                }
-                sendBroadcast(seekIntent)
+                MediaStateBridge.seekTo(this, seekMs)
             }
+            resetAutoCollapseTimer()
         }
 
-        // Frosted Volume Pill (PC Dynamic Island style)
+        // Frosted Volume Pill
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val volSlider = exp.findViewById<SeekBar>(R.id.slider_volume)
         val volLbl = exp.findViewById<TextView>(R.id.tv_volume_lbl)
         val volBtn = exp.findViewById<ImageButton>(R.id.btn_vol_icon)
 
         audioManager?.let { am ->
-            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-            val curPct = if (maxVol > 0) (curVol * 100 / maxVol) else 0
-            volSlider?.progress = curPct
-            volLbl?.text = "$curPct%"
+            syncVolumeUI(am, volSlider, volLbl, volBtn)
 
             volSlider?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser && maxVol > 0) {
-                        val targetVol = (progress * maxVol / 100f).toInt()
-                        am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
-                        volLbl?.text = "$progress%"
-                        volBtn?.setImageResource(if (targetVol > 0) R.drawable.ic_volume else R.drawable.ic_volume_mute)
+                    if (fromUser) {
+                        val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        if (maxVol > 0) {
+                            val targetVol = (progress * maxVol / 100f).toInt()
+                            am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                            volLbl?.text = "$progress%"
+                            volBtn?.setImageResource(if (targetVol > 0) R.drawable.ic_volume else R.drawable.ic_volume_mute)
+                        }
+                        resetAutoCollapseTimer()
                     }
                 }
                 override fun onStartTrackingTouch(sb: SeekBar?) {}
@@ -266,6 +495,7 @@ class IslandOverlayService : Service() {
             })
 
             volBtn?.setOnClickListener {
+                val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
                 if (cur > 0) {
                     am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
@@ -273,21 +503,293 @@ class IslandOverlayService : Service() {
                     volLbl?.text = "0%"
                     volBtn.setImageResource(R.drawable.ic_volume_mute)
                 } else {
-                    val half = maxVol / 2
+                    val half = (maxVol / 2).coerceAtLeast(1)
                     am.setStreamVolume(AudioManager.STREAM_MUSIC, half, 0)
-                    volSlider?.progress = 50
-                    volLbl?.text = "50%"
+                    val pct = half * 100 / maxVol
+                    volSlider?.progress = pct
+                    volLbl?.text = "$pct%"
                     volBtn.setImageResource(R.drawable.ic_volume)
                 }
+                resetAutoCollapseTimer()
             }
+        }
+
+        // Focus Pomodoro Controls
+        setupFocusControls(exp)
+
+        // Quick Tools Controls
+        setupQuickToolsControls(exp)
+    }
+
+    private fun switchTab(tabIndex: Int) {
+        activeTab = tabIndex
+        val exp = expandedView ?: return
+        vibrateTick()
+        resetAutoCollapseTimer()
+
+        val tabs = listOf(
+            exp.findViewById<TextView>(R.id.tab_media),
+            exp.findViewById<TextView>(R.id.tab_system),
+            exp.findViewById<TextView>(R.id.tab_focus),
+            exp.findViewById<TextView>(R.id.tab_tools)
+        )
+        val pages = listOf(
+            exp.findViewById<View>(R.id.page_media),
+            exp.findViewById<View>(R.id.page_system),
+            exp.findViewById<View>(R.id.page_focus),
+            exp.findViewById<View>(R.id.page_tools)
+        )
+
+        for (i in tabs.indices) {
+            val selected = (i == tabIndex)
+            tabs[i]?.setBackgroundResource(if (selected) R.drawable.bg_tab_selected else R.drawable.bg_tab_unselected)
+            tabs[i]?.setTextColor(if (selected) Color.parseColor("#E3E2E6") else Color.parseColor("#8E9099"))
+            pages[i]?.visibility = if (selected) View.VISIBLE else View.GONE
+        }
+
+        if (tabIndex == 1) {
+            updateSystemMetrics()
+        } else if (tabIndex == 2) {
+            updateFocusUI()
+        } else if (tabIndex == 3) {
+            updateToolsState()
         }
     }
 
-    private fun sendMediaKey(command: String) {
-        val intent = Intent(MediaNotificationListener.ACTION_COMMAND).apply {
-            putExtra("command", command)
+    private fun setupFocusControls(exp: View) {
+        val chip5 = exp.findViewById<TextView>(R.id.chip_5m)
+        val chip15 = exp.findViewById<TextView>(R.id.chip_15m)
+        val chip25 = exp.findViewById<TextView>(R.id.chip_25m)
+        val chip45 = exp.findViewById<TextView>(R.id.chip_45m)
+        val chips = listOf(chip5 to 5, chip15 to 15, chip25 to 25, chip45 to 45)
+
+        for ((chipView, mins) in chips) {
+            chipView?.setOnClickListener {
+                vibrateTick()
+                focusRunning = false
+                focusTotalSec = mins * 60
+                focusRemainingSec = focusTotalSec
+                for ((cv, m) in chips) {
+                    val sel = (m == mins)
+                    cv?.setBackgroundResource(if (sel) R.drawable.bg_tab_selected else R.drawable.bg_tab_unselected)
+                    cv?.setTextColor(if (sel) Color.parseColor("#E3E2E6") else Color.parseColor("#C4C6D0"))
+                }
+                updateFocusUI()
+                resetAutoCollapseTimer()
+            }
         }
-        sendBroadcast(intent)
+
+        exp.findViewById<TextView>(R.id.btn_focus_toggle)?.setOnClickListener {
+            vibrateTick()
+            focusRunning = !focusRunning
+            updateFocusUI()
+            updateViews()
+            resetAutoCollapseTimer()
+        }
+
+        exp.findViewById<TextView>(R.id.btn_focus_reset)?.setOnClickListener {
+            vibrateTick()
+            focusRunning = false
+            focusRemainingSec = focusTotalSec
+            updateFocusUI()
+            updateViews()
+            resetAutoCollapseTimer()
+        }
+    }
+
+    private fun updateFocusUI() {
+        val exp = expandedView ?: return
+        val timerTv = exp.findViewById<TextView>(R.id.tv_focus_timer)
+        val statusTv = exp.findViewById<TextView>(R.id.tv_focus_status)
+        val toggleBtn = exp.findViewById<TextView>(R.id.btn_focus_toggle)
+
+        val m = focusRemainingSec / 60
+        val s = focusRemainingSec % 60
+        timerTv?.text = "%02d:%02d".format(m, s)
+
+        if (focusRunning) {
+            statusTv?.text = "● FOCUSING"
+            statusTv?.setTextColor(Color.parseColor("#7FD88F"))
+            toggleBtn?.text = "⏸ Pause"
+        } else if (focusRemainingSec < focusTotalSec) {
+            statusTv?.text = "● PAUSED"
+            statusTv?.setTextColor(Color.parseColor("#FFB86C"))
+            toggleBtn?.text = "▶ Resume"
+        } else {
+            statusTv?.text = "● POMODORO FOCUS"
+            statusTv?.setTextColor(Color.parseColor("#E7B9F5"))
+            toggleBtn?.text = "▶ Start Focus"
+        }
+    }
+
+    private fun setupQuickToolsControls(exp: View) {
+        exp.findViewById<TextView>(R.id.tile_torch)?.setOnClickListener {
+            toggleFlashlight()
+            resetAutoCollapseTimer()
+        }
+
+        exp.findViewById<TextView>(R.id.tile_ringer)?.setOnClickListener {
+            vibrateTick()
+            val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            if (am != null) {
+                try {
+                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
+                } catch (e: Exception) {}
+            }
+            updateToolsState()
+            resetAutoCollapseTimer()
+        }
+
+        exp.findViewById<TextView>(R.id.tile_camera)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland()
+            launchSafeIntent(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+        }
+
+        exp.findViewById<TextView>(R.id.tile_calc)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland()
+            val calcIntent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALCULATOR)
+            launchSafeIntent(calcIntent)
+        }
+
+        exp.findViewById<TextView>(R.id.tile_alarms)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland()
+            launchSafeIntent(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+        }
+
+        exp.findViewById<TextView>(R.id.tile_settings)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland()
+            launchSafeIntent(Intent(this, MainActivity::class.java))
+        }
+    }
+
+    private fun updateToolsState() {
+        val exp = expandedView ?: return
+        val torchTile = exp.findViewById<TextView>(R.id.tile_torch)
+        torchTile?.text = if (isTorchOn) "⚡ Torch ON" else "⚡ Torch Off"
+        torchTile?.setBackgroundResource(if (isTorchOn) R.drawable.bg_tool_tile_active else R.drawable.bg_tool_tile)
+
+        val ringerTile = exp.findViewById<TextView>(R.id.tile_ringer)
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        val modeText = when (am?.ringerMode) {
+            AudioManager.RINGER_MODE_SILENT -> "🔕 Silent"
+            AudioManager.RINGER_MODE_VIBRATE -> "📳 Vibrate"
+            else -> "🔔 Ring"
+        }
+        ringerTile?.text = modeText
+    }
+
+    private fun updateSystemMetrics() {
+        val exp = expandedView ?: return
+        val accentColor = parseAccentColor()
+
+        // 1. RAM Usage
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memInfo = ActivityManager.MemoryInfo()
+        am?.getMemoryInfo(memInfo)
+        val totalGb = memInfo.totalMem / (1024.0 * 1024.0 * 1024.0)
+        val availGb = memInfo.availMem / (1024.0 * 1024.0 * 1024.0)
+        val usedGb = (totalGb - availGb).coerceAtLeast(0.0)
+        val ramPct = if (totalGb > 0) ((usedGb / totalGb) * 100).toInt() else 0
+        exp.findViewById<RingGaugeView>(R.id.gauge_ram)?.setData(
+            ramPct,
+            "Memory",
+            "%.1f / %.0f GB".format(Locale.US, usedGb, totalGb),
+            accentColor
+        )
+
+        // 2. Battery & Temperature
+        val batIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = batIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+        val batPct = if (level >= 0 && scale > 0) (level * 100 / scale) else 100
+        val status = batIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val tempTenths = batIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 300) ?: 300
+        val tempC = tempTenths / 10.0
+        val batColor = if (charging) Color.parseColor("#7FD88F") else Color.parseColor("#FFB86C")
+        exp.findViewById<RingGaugeView>(R.id.gauge_battery)?.setData(
+            batPct,
+            "Battery",
+            "%.1f°C · %s".format(Locale.US, tempC, if (charging) "Chg" else "Idle"),
+            batColor
+        )
+
+        // 3. Internal Storage
+        try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            val totalBytes = stat.blockSizeLong * stat.blockCountLong
+            val availBytes = stat.blockSizeLong * stat.availableBlocksLong
+            val usedBytes = totalBytes - availBytes
+            val diskPct = if (totalBytes > 0) ((usedBytes * 100L) / totalBytes).toInt() else 0
+            val freeGb = availBytes / (1024.0 * 1024.0 * 1024.0)
+            exp.findViewById<RingGaugeView>(R.id.gauge_storage)?.setData(
+                diskPct,
+                "Storage",
+                "%.0f GB free".format(Locale.US, freeGb),
+                Color.parseColor("#E7B9F5")
+            )
+        } catch (e: Exception) {}
+
+        // 4. Network & Uptime Strip
+        val netTv = exp.findViewById<TextView>(R.id.tv_sys_network)
+        val detTv = exp.findViewById<TextView>(R.id.tv_sys_details)
+
+        val netType = getNetworkStatusString()
+        val ip = getLocalIpAddress()
+        netTv?.text = if (ip.isNotEmpty()) "● $netType ($ip)" else "● $netType"
+
+        val uptimeHours = SystemClock.elapsedRealtime() / (1000L * 3600L)
+        val uptimeMins = (SystemClock.elapsedRealtime() / (1000L * 60L)) % 60L
+        detTv?.text = "%.1f°C · Up %dh %dm".format(Locale.US, tempC, uptimeHours, uptimeMins)
+    }
+
+    private fun getNetworkStatusString(): String {
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return "Offline"
+            val net = cm.activeNetwork ?: return "Offline"
+            val caps = cm.getNetworkCapabilities(net) ?: return "Offline"
+            return when {
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "5G / LTE"
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN Active"
+                else -> "Online"
+            }
+        } catch (e: Exception) {
+            return "Online"
+        }
+    }
+
+    private fun getLocalIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return ""
+            for (intf in interfaces) {
+                if (!intf.isUp || intf.isLoopback) continue
+                for (addr in intf.inetAddresses) {
+                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                        return addr.hostAddress ?: ""
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+        return ""
+    }
+
+    private fun getBatteryPercent(): Int {
+        val batIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = batIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+        return if (level >= 0 && scale > 0) (level * 100 / scale) else 100
+    }
+
+    private fun launchSafeIntent(intent: Intent) {
+        try {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {}
     }
 
     private fun expandIsland() {
@@ -303,20 +805,33 @@ class IslandOverlayService : Service() {
             windowManager.updateViewLayout(expandedView, expandedParams)
         }
 
-        // Smooth spring pop-in
-        expandedView?.scaleX = 0.85f
-        expandedView?.scaleY = 0.85f
+        // Sync volume & metrics on open
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        expandedView?.let { exp ->
+            if (am != null) {
+                syncVolumeUI(
+                    am,
+                    exp.findViewById(R.id.slider_volume),
+                    exp.findViewById(R.id.tv_volume_lbl),
+                    exp.findViewById(R.id.btn_vol_icon)
+                )
+            }
+        }
+        updateViews()
+        if (activeTab == 1) updateSystemMetrics()
+
+        expandedView?.scaleX = 0.84f
+        expandedView?.scaleY = 0.84f
         expandedView?.alpha = 0f
         expandedView?.animate()
             ?.scaleX(1f)
             ?.scaleY(1f)
             ?.alpha(1f)
             ?.setDuration(300)
-            ?.setInterpolator(OvershootInterpolator(1.2f))
+            ?.setInterpolator(OvershootInterpolator(1.15f))
             ?.start()
 
-        // Auto-collapse after 10s of inactivity if paused
-        scheduleAutoCollapse(10000)
+        resetAutoCollapseTimer()
     }
 
     private fun collapseIsland() {
@@ -324,56 +839,155 @@ class IslandOverlayService : Service() {
         isExpanded = false
 
         expandedView?.animate()
-            ?.scaleX(0.85f)
-            ?.scaleY(0.85f)
+            ?.scaleX(0.84f)
+            ?.scaleY(0.84f)
             ?.alpha(0f)
-            ?.setDuration(220)
+            ?.setDuration(210)
             ?.withEndAction {
                 if (expandedView?.parent != null) {
-                    windowManager.removeView(expandedView)
+                    try {
+                        windowManager.removeView(expandedView)
+                    } catch (e: Exception) {}
                 }
                 compactView?.visibility = View.VISIBLE
                 compactView?.scaleX = 1f
                 compactView?.scaleY = 1f
                 compactView?.alpha = 1f
+                updateViews()
             }
             ?.start()
     }
 
-    private fun scheduleAutoCollapse(delayMs: Long) {
+    private fun resetAutoCollapseTimer() {
         collapseRunnable?.let { handler.removeCallbacks(it) }
         collapseRunnable = Runnable {
-            if (isExpanded && !isPlaying) {
+            if (isExpanded && !isPlaying && !focusRunning) {
                 collapseIsland()
             }
         }
-        handler.postDelayed(collapseRunnable!!, delayMs)
+        handler.postDelayed(collapseRunnable!!, 12000L)
+    }
+
+    private fun syncVolumeUI(am: AudioManager, slider: SeekBar?, lbl: TextView?, btn: ImageButton?) {
+        val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val curPct = if (maxVol > 0) (curVol * 100 / maxVol) else 0
+        slider?.progress = curPct
+        lbl?.text = "$curPct%"
+        btn?.setImageResource(if (curVol > 0) R.drawable.ic_volume else R.drawable.ic_volume_mute)
+    }
+
+    private fun parseAccentColor(): Int {
+        return try {
+            Color.parseColor(prefs.accentColorHex)
+        } catch (e: Exception) {
+            Color.parseColor("#A8C7FA")
+        }
     }
 
     private fun updateViews() {
-        // Update Compact
+        val accentColor = parseAccentColor()
+        val now = SystemClock.elapsedRealtime()
+
+        // 1. Update Compact Pill
         compactView?.let { v ->
             val titleTv = v.findViewById<TextView>(R.id.compact_title)
             val iconIv = v.findViewById<ImageView>(R.id.compact_icon)
             val trailingTv = v.findViewById<TextView>(R.id.compact_trailing)
+            val visView = v.findViewById<WaveformVisualizerView>(R.id.compact_visualizer)
 
-            titleTv?.text = if (isPlaying || currentTitle.isNotEmpty()) currentTitle else "Dynamic Island"
-            iconIv?.setImageResource(R.drawable.ic_music)
-            trailingTv?.text = if (isPlaying) "  ılı" else ""
+            visView?.setColors(accentColor)
+
+            if (now < toastActiveUntil && toastMessage.isNotEmpty()) {
+                titleTv?.text = toastMessage
+                visView?.visibility = View.GONE
+                trailingTv?.visibility = View.VISIBLE
+                trailingTv?.text = "●"
+                trailingTv?.setTextColor(accentColor)
+            } else if (isPlaying || (currentTitle.isNotEmpty() && currentTitle != "Nothing playing")) {
+                titleTv?.text = currentTitle
+                if (currentAlbumArt != null && !currentAlbumArt!!.isRecycled) {
+                    iconIv?.setPadding(0, 0, 0, 0)
+                    iconIv?.imageTintList = null
+                    iconIv?.setImageBitmap(currentAlbumArt)
+                } else {
+                    val pad = (4 * resources.displayMetrics.density).toInt()
+                    iconIv?.setPadding(pad, pad, pad, pad)
+                    iconIv?.setImageResource(R.drawable.ic_music)
+                }
+
+                if (isPlaying) {
+                    visView?.visibility = View.VISIBLE
+                    visView?.setPlaying(true)
+                    trailingTv?.visibility = View.GONE
+                } else {
+                    visView?.setPlaying(false)
+                    visView?.visibility = View.GONE
+                    trailingTv?.visibility = View.VISIBLE
+                    trailingTv?.text = "⏸"
+                    trailingTv?.setTextColor(accentColor)
+                }
+            } else if (focusRunning) {
+                val m = focusRemainingSec / 60
+                val s = focusRemainingSec % 60
+                titleTv?.text = "Focus %02d:%02d".format(m, s)
+                visView?.visibility = View.GONE
+                trailingTv?.visibility = View.VISIBLE
+                trailingTv?.text = "⏱"
+                trailingTv?.setTextColor(Color.parseColor("#E7B9F5"))
+            } else {
+                // Idle Mode: show Clock & Battery % if enabled
+                visView?.setPlaying(false)
+                visView?.visibility = View.GONE
+                trailingTv?.visibility = View.VISIBLE
+
+                if (prefs.showIdleClockBattery) {
+                    val clockStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                    val batPct = getBatteryPercent()
+                    titleTv?.text = if (isTorchOn) "⚡ Torch Active" else clockStr
+                    trailingTv?.text = "$batPct%"
+                    trailingTv?.setTextColor(Color.parseColor("#7FD88F"))
+                } else {
+                    titleTv?.text = "Dynamic Island"
+                    trailingTv?.text = "●"
+                    trailingTv?.setTextColor(accentColor)
+                }
+            }
         }
 
-        // Update Expanded
+        // 2. Update Expanded Card
         expandedView?.let { v ->
             val titleTv = v.findViewById<TextView>(R.id.expanded_title)
             val artistTv = v.findViewById<TextView>(R.id.expanded_artist)
             val badgeTv = v.findViewById<TextView>(R.id.expanded_badge)
+            val artIv = v.findViewById<ImageView>(R.id.expanded_art)
             val playBtn = v.findViewById<ImageButton>(R.id.btn_play_pause)
             val wavyBar = v.findViewById<WavyProgressBar>(R.id.expanded_wavy_progress)
+            val expVis = v.findViewById<WaveformVisualizerView>(R.id.expanded_visualizer)
+
+            wavyBar?.setAccentColor(accentColor)
+            expVis?.setColors(accentColor)
+            expVis?.setPlaying(isPlaying)
 
             titleTv?.text = currentTitle
-            artistTv?.text = if (currentArtist.isNotEmpty()) currentArtist else (currentApp.ifEmpty { "Play music on Spotify, YouTube or Chrome" })
-            badgeTv?.text = if (currentApp.isNotEmpty()) "● ${currentApp.uppercase()}" else (if (isPlaying) "● PLAYING" else "● IDLE")
-            badgeTv?.setTextColor(if (isPlaying) Color.parseColor("#A8C7FA") else Color.parseColor("#8E9099"))
+            artistTv?.text = currentArtist
+            badgeTv?.text = if (currentApp.isNotEmpty()) {
+                "● ${currentApp.uppercase()}"
+            } else {
+                if (isPlaying) "● PLAYING" else "● IDLE"
+            }
+            badgeTv?.setTextColor(if (isPlaying) accentColor else Color.parseColor("#8E9099"))
+
+            if (currentAlbumArt != null && !currentAlbumArt!!.isRecycled) {
+                artIv?.setPadding(0, 0, 0, 0)
+                artIv?.imageTintList = null
+                artIv?.setImageBitmap(currentAlbumArt)
+            } else {
+                val pad = (12 * resources.displayMetrics.density).toInt()
+                artIv?.setPadding(pad, pad, pad, pad)
+                artIv?.setImageResource(R.drawable.ic_music)
+                artIv?.setColorFilter(accentColor)
+            }
 
             playBtn?.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
             wavyBar?.setPlaybackState(currentPos, currentDur, isPlaying)
@@ -381,17 +995,36 @@ class IslandOverlayService : Service() {
     }
 
     fun showToastPill(text: String, iconRes: Int) {
-        compactView?.let { v ->
-            val titleTv = v.findViewById<TextView>(R.id.compact_title)
-            val iconIv = v.findViewById<ImageView>(R.id.compact_icon)
-            titleTv?.text = text
-            iconIv?.setImageResource(iconRes)
-            handler.postDelayed({ updateViews() }, 3000)
-        }
+        toastMessage = text
+        toastActiveUntil = SystemClock.elapsedRealtime() + 3000L
+        compactView?.findViewById<ImageView>(R.id.compact_icon)?.setImageResource(iconRes)
+        updateViews()
+        handler.postDelayed({ updateViews() }, 3100L)
+    }
+
+    private fun vibrateTick() {
+        compactView?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    }
+
+    private fun vibrateAlert() {
+        try {
+            val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vib.vibrate(VibrationEffect.createOneShot(250L, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(250L)
+            }
+        } catch (e: Exception) {}
     }
 
     override fun onDestroy() {
         isRunning = false
+        handler.removeCallbacksAndMessages(null)
+        MediaStateBridge.removeListener(bridgeListener)
+        try {
+            cameraManager?.unregisterTorchCallback(torchCallback)
+        } catch (e: Exception) {}
         try {
             unregisterReceiver(mediaUpdateReceiver)
         } catch (e: Exception) {}

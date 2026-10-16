@@ -3,32 +3,33 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/compact_container"
     android:layout_width="wrap_content"
-    android:layout_height="38dp"
+    android:layout_height="36dp"
     android:background="@drawable/bg_island_compact"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="7dp"
-    android:paddingEnd="10dp">
+    android:paddingStart="6dp"
+    android:paddingEnd="9dp">
 
-    <!-- Left Badge (PC CompactView Badge) -->
+    <!-- Left Badge (Album Art or Status Icon) -->
     <FrameLayout
         android:id="@+id/compact_badge_container"
-        android:layout_width="26dp"
-        android:layout_height="26dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         android:background="@drawable/bg_compact_badge">
 
         <ImageView
             android:id="@+id/compact_icon"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_gravity="center"
             android:contentDescription="Mini Art"
-            android:scaleType="centerInside"
+            android:padding="4dp"
+            android:scaleType="centerCrop"
             android:src="@drawable/ic_music"
             app:tint="@color/m3_on_primary" />
     </FrameLayout>
 
-    <!-- Center Track Title -->
+    <!-- Center Track Title / Focus Timer / Clock -->
     <TextView
         android:id="@+id/compact_title"
         android:layout_width="0dp"
@@ -37,23 +38,29 @@
         android:ellipsize="marquee"
         android:focusable="true"
         android:marqueeRepeatLimit="marquee_forever"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="6dp"
         android:singleLine="true"
         android:text="Dynamic Island"
         android:textColor="@color/m3_on_surface"
-        android:textSize="12.5sp"
+        android:textSize="12sp"
         android:textStyle="bold" />
 
-    <!-- Right Indicator: Waveform bars / status dot -->
+    <!-- Right Animated 4-Bar Equalizer (shown during playback) -->
+    <com.dynamicisland.app.view.WaveformVisualizerView
+        android:id="@+id/compact_visualizer"
+        android:layout_width="24dp"
+        android:layout_height="16dp"
+        android:visibility="gone" />
+
+    <!-- Right Status Text (Battery % / Timer badge when idle) -->
     <TextView
         android:id="@+id/compact_trailing"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:letterSpacing="0.1"
-        android:text="  ılı"
+        android:text="●"
         android:textColor="@color/m3_primary"
-        android:textSize="13sp"
+        android:textSize="10.5sp"
         android:textStyle="bold" />
 
 </LinearLayout>
