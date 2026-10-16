@@ -16,6 +16,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.graphics.Color
+import android.media.AudioManager
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -24,6 +26,7 @@ import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.dynamicisland.app.view.WavyProgressBar
@@ -235,6 +238,49 @@ class IslandOverlayService : Service() {
                 sendBroadcast(seekIntent)
             }
         }
+
+        // Frosted Volume Pill (PC Dynamic Island style)
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        val volSlider = exp.findViewById<SeekBar>(R.id.slider_volume)
+        val volLbl = exp.findViewById<TextView>(R.id.tv_volume_lbl)
+        val volBtn = exp.findViewById<ImageButton>(R.id.btn_vol_icon)
+
+        audioManager?.let { am ->
+            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val curPct = if (maxVol > 0) (curVol * 100 / maxVol) else 0
+            volSlider?.progress = curPct
+            volLbl?.text = "$curPct%"
+
+            volSlider?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser && maxVol > 0) {
+                        val targetVol = (progress * maxVol / 100f).toInt()
+                        am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                        volLbl?.text = "$progress%"
+                        volBtn?.setImageResource(if (targetVol > 0) R.drawable.ic_volume else R.drawable.ic_volume_mute)
+                    }
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
+            })
+
+            volBtn?.setOnClickListener {
+                val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                if (cur > 0) {
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+                    volSlider?.progress = 0
+                    volLbl?.text = "0%"
+                    volBtn.setImageResource(R.drawable.ic_volume_mute)
+                } else {
+                    val half = maxVol / 2
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, half, 0)
+                    volSlider?.progress = 50
+                    volLbl?.text = "50%"
+                    volBtn.setImageResource(R.drawable.ic_volume)
+                }
+            }
+        }
     }
 
     private fun sendMediaKey(command: String) {
@@ -313,7 +359,7 @@ class IslandOverlayService : Service() {
 
             titleTv?.text = if (isPlaying || currentTitle.isNotEmpty()) currentTitle else "Dynamic Island"
             iconIv?.setImageResource(R.drawable.ic_music)
-            trailingTv?.text = if (isPlaying) "●" else ""
+            trailingTv?.text = if (isPlaying) "  ılı" else ""
         }
 
         // Update Expanded
@@ -325,8 +371,9 @@ class IslandOverlayService : Service() {
             val wavyBar = v.findViewById<WavyProgressBar>(R.id.expanded_wavy_progress)
 
             titleTv?.text = currentTitle
-            artistTv?.text = if (currentArtist.isNotEmpty()) currentArtist else (currentApp.ifEmpty { "Playing on this device" })
+            artistTv?.text = if (currentArtist.isNotEmpty()) currentArtist else (currentApp.ifEmpty { "Play music on Spotify, YouTube or Chrome" })
             badgeTv?.text = if (currentApp.isNotEmpty()) "● ${currentApp.uppercase()}" else (if (isPlaying) "● PLAYING" else "● IDLE")
+            badgeTv?.setTextColor(if (isPlaying) Color.parseColor("#A8C7FA") else Color.parseColor("#8E9099"))
 
             playBtn?.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
             wavyBar?.setPlaybackState(currentPos, currentDur, isPlaying)

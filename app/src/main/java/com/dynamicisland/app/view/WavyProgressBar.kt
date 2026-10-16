@@ -54,12 +54,17 @@ class WavyProgressBar @JvmOverloads constructor(
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
-        color = Color.argb(60, 208, 188, 255)
+        color = Color.argb(55, 168, 199, 250)
     }
 
     private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.WHITE
+    }
+
+    private val thumbInnerDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#A8C7FA")
     }
 
     private val thumbShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -68,8 +73,8 @@ class WavyProgressBar @JvmOverloads constructor(
     }
 
     private val timeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = dp(11)
-        color = Color.argb(160, 255, 255, 255)
+        textSize = dp(10)
+        color = Color.parseColor("#C4C6D0")
     }
 
     private var waveAnimator: ValueAnimator? = null
@@ -206,22 +211,25 @@ class WavyProgressBar @JvmOverloads constructor(
                 wavePath.lineTo(xEnd, trackY)
             }
 
-            // Gradient from purple/violet (Primary) to rose/accent (Tertiary)
+            // Glowing gradient along track (M3.PRIMARY #A8C7FA -> M3.TERTIARY #E7B9F5)
             wavePaint.shader = LinearGradient(
                 xStart, 0f, w - pad, 0f,
-                Color.parseColor("#D0BCFF"),
-                Color.parseColor("#EFB8C8"),
+                Color.parseColor("#A8C7FA"),
+                Color.parseColor("#E7B9F5"),
                 Shader.TileMode.CLAMP
             )
 
-            // Draw outer glow and main wave
+            // Draw outer neon glow halo and crisp wave stroke
             canvas.drawPath(wavePath, glowPaint)
             canvas.drawPath(wavePath, wavePaint)
 
-            // 3. Luminous Thumb Knob
+            // 3. Interactive luminous thumb knob
             val thumbRadius = if (isDragging) dp(6.5f) else dp(4.5f)
-            canvas.drawCircle(xEnd, trackY + dp(1), thumbRadius + dp(1), thumbShadowPaint)
+            canvas.drawCircle(xEnd, trackY + dp(1.2f), thumbRadius + dp(1.2f), thumbShadowPaint)
             canvas.drawCircle(xEnd, trackY, thumbRadius, thumbPaint)
+            if (isDragging) {
+                canvas.drawCircle(xEnd, trackY, thumbRadius * 0.45f, thumbInnerDotPaint)
+            }
         }
 
         // 4. Timestamps
