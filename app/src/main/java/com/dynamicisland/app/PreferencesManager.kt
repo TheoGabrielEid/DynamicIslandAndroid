@@ -46,6 +46,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean("long_press_torch", true)
         set(value) = prefs.edit().putBoolean("long_press_torch", value).apply()
 
+    var wanVpnColor: Boolean
+        get() = prefs.getBoolean("wan_vpn_color", true)
+        set(value) = prefs.edit().putBoolean("wan_vpn_color", value).apply()
+
     fun resetPositionDefaults() {
         notchXOffset = 0
         notchYOffset = 8

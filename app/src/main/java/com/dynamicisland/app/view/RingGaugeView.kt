@@ -1,5 +1,6 @@
 package com.dynamicisland.app.view
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -8,6 +9,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import kotlin.math.min
 
 class RingGaugeView @JvmOverloads constructor(
@@ -16,15 +18,17 @@ class RingGaugeView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private var percent: Int = 0
+    private var targetPercent: Int = 0
+    private var animatedPercent: Float = 0f
     private var label: String = "CPU"
     private var subtext: String = "--"
+    private var customValueText: String? = null
     private var ringColor: Int = Color.parseColor("#A8C7FA")
 
     private val bgArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
-        color = Color.argb(32, 255, 255, 255)
+        color = Color.argb(26, 255, 255, 255)
     }
 
     private val glowArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -52,16 +56,41 @@ class RingGaugeView @JvmOverloads constructor(
     private val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#8E9099")
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
 
     private val arcRect = RectF()
+    private var animator: ValueAnimator? = null
 
-    fun setData(percent: Int, label: String, subtext: String, color: Int) {
-        this.percent = percent.coerceIn(0, 100)
+    fun setData(
+        percent: Int,
+        label: String,
+        subtext: String,
+        color: Int,
+        valueText: String? = null
+    ) {
+        val clamped = percent.coerceIn(0, 100)
         this.label = label
         this.subtext = subtext
         this.ringColor = color
-        invalidate()
+        this.customValueText = valueText
+
+        if (clamped != targetPercent) {
+            val startVal = animatedPercent
+            targetPercent = clamped
+            animator?.cancel()
+            animator = ValueAnimator.ofFloat(startVal, clamped.toFloat()).apply {
+                duration = 380L
+                interpolator = DecelerateInterpolator()
+                addUpdateListener {
+                    animatedPercent = it.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        } else {
+            invalidate()
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -71,44 +100,50 @@ class RingGaugeView @JvmOverloads constructor(
         if (w <= 0f || h <= 0f) return
 
         val d = resources.displayMetrics.density
-        val strokeW = 5.5f * d
+        val strokeW = 4.8f * d
         bgArcPaint.strokeWidth = strokeW
         fgArcPaint.strokeWidth = strokeW
         fgArcPaint.color = ringColor
 
-        glowArcPaint.strokeWidth = strokeW + 3f * d
+        glowArcPaint.strokeWidth = strokeW + 2.8f * d
         glowArcPaint.color = ringColor
-        glowArcPaint.alpha = 50
+        glowArcPaint.alpha = 46
 
-        val ringSize = min(w * 0.72f, h * 0.60f)
+        val ringSize = min(w * 0.76f, h * 0.58f)
         val cx = w / 2f
-        val cy = ringSize / 2f + 6f * d
+        val cy = ringSize / 2f + 4f * d
         val r = (ringSize - strokeW * 2f) / 2f
 
         arcRect.set(cx - r, cy - r, cx + r, cy + r)
 
-        // Draw background circle
+        // 1. Background circle
         canvas.drawArc(arcRect, 0f, 360f, false, bgArcPaint)
 
-        // Draw active arc starting from top (-90 deg)
-        val sweep = (percent / 100f) * 360f
-        if (sweep > 1f) {
+        // 2. Active arc starting from top (-90 deg)
+        val sweep = (animatedPercent / 100f) * 360f
+        if (sweep > 0.8f) {
             canvas.drawArc(arcRect, -90f, sweep, false, glowArcPaint)
             canvas.drawArc(arcRect, -90f, sweep, false, fgArcPaint)
         }
 
-        // Draw percentage in ring center
-        valuePaint.textSize = 12.5f * d
+        // 3. Value inside ring center
+        val displayVal = customValueText ?: "${animatedPercent.toInt()}%"
+        valuePaint.textSize = if (displayVal.length > 4) 9.8f * d else 11.2f * d
         val textOffset = (valuePaint.descent() + valuePaint.ascent()) / 2f
-        canvas.drawText("$percent%", cx, cy - textOffset, valuePaint)
+        canvas.drawText(displayVal, cx, cy - textOffset, valuePaint)
 
-        // Draw label below ring
-        labelPaint.textSize = 11f * d
-        val labelY = cy + r + 15f * d
+        // 4. Label below ring
+        labelPaint.textSize = 9.8f * d
+        val labelY = cy + r + 13f * d
         canvas.drawText(label, cx, labelY, labelPaint)
 
-        // Draw subtext below label
-        subPaint.textSize = 9.5f * d
-        canvas.drawText(subtext, cx, labelY + 12f * d, subPaint)
+        // 5. Subtitle below label
+        subPaint.textSize = 8.5f * d
+        canvas.drawText(subtext, cx, labelY + 10.5f * d, subPaint)
+    }
+
+    override fun onDetachedFromWindow() {
+        animator?.cancel()
+        super.onDetachedFromWindow()
     }
 }

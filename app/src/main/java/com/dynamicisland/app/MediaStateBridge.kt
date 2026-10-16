@@ -16,6 +16,7 @@ object MediaStateBridge {
         val title: String = "Nothing playing",
         val artist: String = "Play music on Spotify, YouTube or Chrome",
         val appName: String = "",
+        val packageName: String = "",
         val isPlaying: Boolean = false,
         val positionMs: Long = 0L,
         val durationMs: Long = 0L,
@@ -52,7 +53,8 @@ object MediaStateBridge {
         isPlaying: Boolean,
         positionMs: Long,
         durationMs: Long,
-        albumArt: Bitmap? = current.albumArt
+        albumArt: Bitmap? = current.albumArt,
+        packageName: String = current.packageName
     ) {
         val cleanTitle = title.ifBlank { "Nothing playing" }
         val cleanArtist = artist.ifBlank {
@@ -62,6 +64,7 @@ object MediaStateBridge {
             title = cleanTitle,
             artist = cleanArtist,
             appName = appName,
+            packageName = packageName,
             isPlaying = isPlaying,
             positionMs = positionMs.coerceAtLeast(0L),
             durationMs = durationMs.coerceAtLeast(0L),
@@ -97,7 +100,8 @@ object MediaStateBridge {
             isPlaying = !current.isPlaying,
             positionMs = current.livePositionMs(),
             durationMs = current.durationMs,
-            albumArt = current.albumArt
+            albumArt = current.albumArt,
+            packageName = current.packageName
         )
     }
 
@@ -116,12 +120,14 @@ object MediaStateBridge {
     }
 
     fun seekTo(context: Context, posMs: Long) {
-        MediaNotificationListener.instance?.executeSeek(posMs)
-        val seekIntent = Intent(MediaNotificationListener.ACTION_SEEK).apply {
-            setPackage(context.packageName)
-            putExtra("position_ms", posMs)
+        val handled = MediaNotificationListener.instance?.executeSeek(posMs) ?: false
+        if (!handled) {
+            val seekIntent = Intent(MediaNotificationListener.ACTION_SEEK).apply {
+                setPackage(context.packageName)
+                putExtra("position_ms", posMs)
+            }
+            context.sendBroadcast(seekIntent)
         }
-        context.sendBroadcast(seekIntent)
 
         update(
             title = current.title,
@@ -130,8 +136,26 @@ object MediaStateBridge {
             isPlaying = current.isPlaying,
             positionMs = posMs,
             durationMs = current.durationMs,
-            albumArt = current.albumArt
+            albumArt = current.albumArt,
+            packageName = current.packageName
         )
+    }
+
+    fun launchActivePlayerApp(context: Context): Boolean {
+        val pkg = current.packageName
+        if (pkg.isBlank()) return false
+        return try {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(launchIntent)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun dispatchMediaKey(context: Context, keyCode: Int) {

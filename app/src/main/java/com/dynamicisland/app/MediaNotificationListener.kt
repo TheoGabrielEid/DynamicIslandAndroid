@@ -344,7 +344,8 @@ class MediaNotificationListener : NotificationListenerService() {
             isPlaying = isPlaying,
             positionMs = position,
             durationMs = duration,
-            albumArt = art
+            albumArt = art,
+            packageName = appPkg
         )
 
         // 2. Also send explicit package-scoped broadcast for Android 14+ compatibility

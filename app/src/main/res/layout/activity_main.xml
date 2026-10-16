@@ -53,7 +53,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Material 3 Expressive · Media · System · Focus · Tools"
+                    android:text="Material 3 Expressive · Media · LAN/WAN Graph · Focus"
                     android:textColor="@color/m3_on_surface_var"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -216,13 +216,13 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Accent Color Theme Picker -->
+        <!-- Accent Color Theme Picker (12 Themes in 3x4 Grid) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:letterSpacing="0.08"
-            android:text="ACCENT COLOR THEME"
+            android:text="ACCENT COLOR THEMES (12 PRESETS)"
             android:textColor="@color/m3_primary"
             android:textSize="11.5sp"
             android:textStyle="bold" />
@@ -239,73 +239,188 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:padding="14dp">
+                android:orientation="vertical"
+                android:padding="12dp">
 
-                <TextView
-                    android:id="@+id/theme_periwinkle"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_selected"
+                <!-- Row 1 of Themes -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:text="● Blue"
-                    android:textColor="#A8C7FA"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/theme_lavender"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_unselected"
-                    android:gravity="center"
-                    android:text="● Rose"
-                    android:textColor="#E7B9F5"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/theme_periwinkle"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_selected"
+                        android:gravity="center"
+                        android:text="● Sky Blue"
+                        android:textColor="#A8C7FA"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/theme_emerald"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_unselected"
-                    android:gravity="center"
-                    android:text="● Mint"
-                    android:textColor="#7FD88F"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/theme_emerald"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Emerald"
+                        android:textColor="#7FD88F"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/theme_sunset"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_unselected"
-                    android:gravity="center"
-                    android:text="● Gold"
-                    android:textColor="#FFB86C"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/theme_violet"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Violet"
+                        android:textColor="#D0BCFF"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/theme_cyan"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_unselected"
+                    <TextView
+                        android:id="@+id/theme_sunset"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Gold"
+                        android:textColor="#FFB86C"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Row 2 of Themes -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="● Cyan"
-                    android:textColor="#6FD8F5"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/theme_crimson"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Crimson"
+                        android:textColor="#FFB4AB"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/theme_cyan"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Cyber"
+                        android:textColor="#70F0FF"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/theme_lavender"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Sakura"
+                        android:textColor="#E7B9F5"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/theme_lime"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Matrix"
+                        android:textColor="#9BD84A"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Row 3 of Themes -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/theme_magenta"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Magenta"
+                        android:textColor="#FF79C6"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/theme_indigo"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Indigo"
+                        android:textColor="#818CF8"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/theme_aqua"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Mint"
+                        android:textColor="#2DD4BF"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/theme_silver"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_tab_unselected"
+                        android:gravity="center"
+                        android:text="● Frost"
+                        android:textColor="#E2E8F0"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -315,7 +430,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:letterSpacing="0.08"
-            android:text="SMART FEATURES &amp; GESTURES"
+            android:text="SMART FEATURES &amp; NETWORK TELEMETRY"
             android:textColor="@color/m3_primary"
             android:textSize="11.5sp"
             android:textStyle="bold" />
@@ -336,6 +451,15 @@
                 android:padding="14dp">
 
                 <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_wan_vpn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Color WAN IP Green when VPN Active (Red when Off)"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switch_idle_clock"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -349,7 +473,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="Show Song Toast on Track Change"
+                    android:text="Show Song Toast &amp; Aura Glow on Track Change"
                     android:textColor="@color/m3_on_surface"
                     android:textSize="13sp" />
 
@@ -500,7 +624,7 @@
 
             <Button
                 android:id="@+id/btn_test_charging"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -508,5 +632,4 @@
         </LinearLayout>
 
     </LinearLayout>
-
 </androidx.core.widget.NestedScrollView>

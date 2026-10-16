@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlay: Button
     private lateinit var btnNotification: Button
 
+    private lateinit var switchWanVpn: MaterialSwitch
     private lateinit var switchIdleClock: MaterialSwitch
     private lateinit var switchAutoExpand: MaterialSwitch
     private lateinit var switchDoubleTap: MaterialSwitch
@@ -71,6 +72,7 @@ class MainActivity : AppCompatActivity() {
         btnOverlay = findViewById(R.id.btn_perm_overlay)
         btnNotification = findViewById(R.id.btn_perm_notification)
 
+        switchWanVpn = findViewById(R.id.switch_wan_vpn)
         switchIdleClock = findViewById(R.id.switch_idle_clock)
         switchAutoExpand = findViewById(R.id.switch_auto_expand)
         switchDoubleTap = findViewById(R.id.switch_double_tap)
@@ -92,13 +94,21 @@ class MainActivity : AppCompatActivity() {
 
         themeChips = listOf(
             findViewById<TextView>(R.id.theme_periwinkle) to "#A8C7FA",
-            findViewById<TextView>(R.id.theme_lavender) to "#E7B9F5",
             findViewById<TextView>(R.id.theme_emerald) to "#7FD88F",
+            findViewById<TextView>(R.id.theme_violet) to "#D0BCFF",
             findViewById<TextView>(R.id.theme_sunset) to "#FFB86C",
-            findViewById<TextView>(R.id.theme_cyan) to "#6FD8F5"
+            findViewById<TextView>(R.id.theme_crimson) to "#FFB4AB",
+            findViewById<TextView>(R.id.theme_cyan) to "#70F0FF",
+            findViewById<TextView>(R.id.theme_lavender) to "#E7B9F5",
+            findViewById<TextView>(R.id.theme_lime) to "#9BD84A",
+            findViewById<TextView>(R.id.theme_magenta) to "#FF79C6",
+            findViewById<TextView>(R.id.theme_indigo) to "#818CF8",
+            findViewById<TextView>(R.id.theme_aqua) to "#2DD4BF",
+            findViewById<TextView>(R.id.theme_silver) to "#E2E8F0"
         )
 
         // Load saved preferences
+        switchWanVpn.isChecked = prefs.wanVpnColor
         switchIdleClock.isChecked = prefs.showIdleClockBattery
         switchAutoExpand.isChecked = prefs.autoExpandOnSong
         switchDoubleTap.isChecked = prefs.doubleTapPlayPause
@@ -161,6 +171,11 @@ class MainActivity : AppCompatActivity() {
                 updateThemeChipSelection()
                 notifyServicePrefsChanged()
             }
+        }
+
+        switchWanVpn.setOnCheckedChangeListener { _, checked ->
+            prefs.wanVpnColor = checked
+            notifyServicePrefsChanged()
         }
 
         switchIdleClock.setOnCheckedChangeListener { _, checked ->
