@@ -10,6 +10,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean("service_enabled", false)
         set(value) = prefs.edit().putBoolean("service_enabled", value).apply()
 
+    var startOnBoot: Boolean
+        get() = prefs.getBoolean("start_on_boot", true)
+        set(value) = prefs.edit().putBoolean("start_on_boot", value).apply()
+
     var notchXOffset: Int
         get() = prefs.getInt("notch_x", 0)
         set(value) = prefs.edit().putInt("notch_x", value).apply()

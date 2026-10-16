@@ -451,6 +451,15 @@
                 android:padding="14dp">
 
                 <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_start_on_boot"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Auto-Start Dynamic Island on Phone Boot"
+                    android:textColor="@color/m3_on_surface"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switch_wan_vpn"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

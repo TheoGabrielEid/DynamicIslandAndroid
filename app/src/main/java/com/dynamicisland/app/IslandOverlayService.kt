@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -21,6 +22,7 @@ import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -33,6 +35,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.AlarmClock
 import android.provider.MediaStore
+import android.provider.Settings
 import android.view.GestureDetector
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -47,6 +50,8 @@ import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import com.dynamicisland.app.view.AlbumArtView
+import com.dynamicisland.app.view.FocusRingView
 import com.dynamicisland.app.view.IslandContainerView
 import com.dynamicisland.app.view.NetworkGraphView
 import com.dynamicisland.app.view.RingGaugeView
@@ -62,6 +67,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -97,7 +103,7 @@ class IslandOverlayService : Service() {
 
     private var isExpanded: Boolean = false
     private var isPinned: Boolean = false
-    private var activeTab: Int = 0 // 0=Media, 1=System, 2=Focus, 3=Tools
+    private var activeTab: Int = 0 // 0=Media, 1=System, 2=Focus, 3=Tools, 4=Apps
 
     private val handler = Handler(Looper.getMainLooper())
     private var collapseRunnable: Runnable? = null
@@ -126,6 +132,9 @@ class IslandOverlayService : Service() {
     // Toast override state
     private var toastActiveUntil: Long = 0L
     private var toastMessage: String = ""
+
+    // Clipboard state
+    private var lastClipboardText: String = ""
 
     // Live Network Traffic & LAN/WAN/VPN Telemetry (matches Windows PC NetMeter)
     private var prevRxBytes: Long = -1L
@@ -242,6 +251,7 @@ class IslandOverlayService : Service() {
         startForeground(1001, createForegroundNotification())
 
         initFlashlight()
+        initClipboardWatcher()
 
         val filter = IntentFilter().apply {
             addAction(ACTION_UPDATE_MEDIA)
@@ -263,6 +273,28 @@ class IslandOverlayService : Service() {
         applyWindowLayoutUpdates()
         updateViews()
         return START_STICKY
+    }
+
+    private fun initClipboardWatcher() {
+        try {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+            cm.addPrimaryClipChangedListener {
+                try {
+                    val clip = cm.primaryClip
+                    if (clip != null && clip.itemCount > 0) {
+                        val txt = clip.getItemAt(0)?.coerceToText(this)?.toString()?.trim() ?: ""
+                        if (txt.isNotEmpty() && txt != lastClipboardText) {
+                            lastClipboardText = txt
+                            updateToolsState()
+                            if (!isExpanded) {
+                                val preview = if (txt.length > 22) txt.take(22) + "…" else txt
+                                showToastPill("📋 Copied: $preview", R.drawable.ic_music, parseAccentColor())
+                            }
+                        }
+                    }
+                } catch (e: Exception) {}
+            }
+        } catch (e: Exception) {}
     }
 
     private fun initFlashlight() {
@@ -358,7 +390,7 @@ class IslandOverlayService : Service() {
         (compactView as? IslandContainerView)?.isCompactPill = true
         compactView?.findViewById<WaveformVisualizerView>(R.id.compact_visualizer)?.barCount = 4
 
-        // Clip compact badge to circle/rounded rect so album art never bleeds
+        // Clip compact badge to circle so album art never bleeds
         val compactIcon = compactView?.findViewById<ImageView>(R.id.compact_icon)
         compactIcon?.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
@@ -388,7 +420,7 @@ class IslandOverlayService : Service() {
             cornerRadiusDp = 28f
         }
         val screenWidth = resources.displayMetrics.widthPixels
-        val expandedWidth = (screenWidth * 0.94f).toInt()
+        val expandedWidth = (screenWidth * 0.95f).toInt()
 
         expandedParams = WindowManager.LayoutParams(
             expandedWidth,
@@ -480,15 +512,7 @@ class IslandOverlayService : Service() {
     private fun setupExpandedControls() {
         val exp = expandedView ?: return
 
-        // Clip Album Art to rounded 14dp corners
-        val artIv = exp.findViewById<ImageView>(R.id.expanded_art)
-        artIv?.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(view: View, outline: Outline) {
-                val radius = 14f * resources.displayMetrics.density
-                outline.setRoundRect(0, 0, view.width, view.height, radius)
-            }
-        }
-        artIv?.clipToOutline = true
+        val artView = exp.findViewById<AlbumArtView>(R.id.expanded_art_view)
 
         // Tap album art or app badge to jump directly into active music player app
         val openPlayerClick = View.OnClickListener {
@@ -497,21 +521,17 @@ class IslandOverlayService : Service() {
                 collapseIsland(force = true)
             }
         }
-        artIv?.setOnClickListener(openPlayerClick)
+        artView?.setOnClickListener(openPlayerClick)
         exp.findViewById<View>(R.id.expanded_badge)?.setOnClickListener(openPlayerClick)
 
-        exp.findViewById<WaveformVisualizerView>(R.id.expanded_visualizer)?.barCount = 10
+        exp.findViewById<WaveformVisualizerView>(R.id.expanded_visualizer)?.barCount = 12
 
-        // Tab Navigation
-        val tabMedia = exp.findViewById<TextView>(R.id.tab_media)
-        val tabSystem = exp.findViewById<TextView>(R.id.tab_system)
-        val tabFocus = exp.findViewById<TextView>(R.id.tab_focus)
-        val tabTools = exp.findViewById<TextView>(R.id.tab_tools)
-
-        tabMedia?.setOnClickListener { switchTab(0) }
-        tabSystem?.setOnClickListener { switchTab(1) }
-        tabFocus?.setOnClickListener { switchTab(2) }
-        tabTools?.setOnClickListener { switchTab(3) }
+        // 5-Tab Navigation (Media, System, Focus, Tools, Apps)
+        exp.findViewById<TextView>(R.id.tab_media)?.setOnClickListener { switchTab(0) }
+        exp.findViewById<TextView>(R.id.tab_system)?.setOnClickListener { switchTab(1) }
+        exp.findViewById<TextView>(R.id.tab_focus)?.setOnClickListener { switchTab(2) }
+        exp.findViewById<TextView>(R.id.tab_tools)?.setOnClickListener { switchTab(3) }
+        exp.findViewById<TextView>(R.id.tab_apps)?.setOnClickListener { switchTab(4) }
 
         // Pin button (matching PC DynamicCapsule pin feature)
         val pinBtn = exp.findViewById<TextView>(R.id.btn_pin)
@@ -535,7 +555,7 @@ class IslandOverlayService : Service() {
             collapseIsland(force = true)
         }
 
-        // Swipe up gesture anywhere on expanded card to collapse smoothly
+        // Swipe up to collapse or swipe left/right to cycle tabs!
         val swipeDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -543,8 +563,16 @@ class IslandOverlayService : Service() {
                 velocityX: Float,
                 velocityY: Float
             ): Boolean {
-                if (e1 != null && (e1.y - e2.y) > 45f && kotlin.math.abs(velocityY) > 180f) {
+                if (e1 == null) return false
+                val dy = e1.y - e2.y
+                val dx = e2.x - e1.x
+                if (dy > 45f && abs(velocityY) > abs(velocityX) && abs(velocityY) > 180f) {
                     collapseIsland(force = true)
+                    return true
+                }
+                if (abs(dx) > 65f && abs(velocityX) > abs(velocityY) && abs(velocityX) > 220f) {
+                    val nextTab = if (dx < 0) (activeTab + 1) % 5 else (activeTab + 4) % 5
+                    switchTab(nextTab)
                     return true
                 }
                 return false
@@ -641,10 +669,13 @@ class IslandOverlayService : Service() {
 
         // Quick Tools Controls
         setupQuickToolsControls(exp)
+
+        // Apps Quick Launcher Controls
+        setupAppsLauncherControls(exp)
     }
 
     private fun switchTab(tabIndex: Int) {
-        activeTab = tabIndex
+        activeTab = tabIndex.coerceIn(0, 4)
         val exp = expandedView ?: return
         vibrateTick()
         triggerExpandedAura(parseAccentColor(), 900L)
@@ -654,29 +685,31 @@ class IslandOverlayService : Service() {
             exp.findViewById<TextView>(R.id.tab_media),
             exp.findViewById<TextView>(R.id.tab_system),
             exp.findViewById<TextView>(R.id.tab_focus),
-            exp.findViewById<TextView>(R.id.tab_tools)
+            exp.findViewById<TextView>(R.id.tab_tools),
+            exp.findViewById<TextView>(R.id.tab_apps)
         )
         val pages = listOf(
             exp.findViewById<View>(R.id.page_media),
             exp.findViewById<View>(R.id.page_system),
             exp.findViewById<View>(R.id.page_focus),
-            exp.findViewById<View>(R.id.page_tools)
+            exp.findViewById<View>(R.id.page_tools),
+            exp.findViewById<View>(R.id.page_apps)
         )
 
         for (i in tabs.indices) {
-            val selected = (i == tabIndex)
+            val selected = (i == activeTab)
             tabs[i]?.setBackgroundResource(if (selected) R.drawable.bg_tab_selected else R.drawable.bg_tab_unselected)
             tabs[i]?.setTextColor(if (selected) Color.parseColor("#E3E2E6") else Color.parseColor("#8E9099"))
             pages[i]?.visibility = if (selected) View.VISIBLE else View.GONE
         }
 
-        if (tabIndex == 1) {
-            probeNetworkRouteAndWan(forceWan = cachedWanIp == "…" || cachedWanIp == "Offline")
-            updateSystemMetrics()
-        } else if (tabIndex == 2) {
-            updateFocusUI()
-        } else if (tabIndex == 3) {
-            updateToolsState()
+        when (activeTab) {
+            1 -> {
+                probeNetworkRouteAndWan(forceWan = cachedWanIp == "…" || cachedWanIp == "Offline")
+                updateSystemMetrics()
+            }
+            2 -> updateFocusUI()
+            3 -> updateToolsState()
         }
     }
 
@@ -685,7 +718,7 @@ class IslandOverlayService : Service() {
         val chip15 = exp.findViewById<TextView>(R.id.chip_15m)
         val chip25 = exp.findViewById<TextView>(R.id.chip_25m)
         val chip45 = exp.findViewById<TextView>(R.id.chip_45m)
-        val chips = listOf(chip5 to 5, chip15 to 15, chip25 to 25, chip45 to 45)
+        val chips = listOf(chip5 to 5, chip15 to 15, chip25 to 25, chip45 to 50)
 
         for ((chipView, mins) in chips) {
             chipView?.setOnClickListener {
@@ -724,26 +757,28 @@ class IslandOverlayService : Service() {
 
     private fun updateFocusUI() {
         val exp = expandedView ?: return
-        val timerTv = exp.findViewById<TextView>(R.id.tv_focus_timer)
-        val statusTv = exp.findViewById<TextView>(R.id.tv_focus_status)
+        val ringView = exp.findViewById<FocusRingView>(R.id.focus_ring_view)
         val toggleBtn = exp.findViewById<TextView>(R.id.btn_focus_toggle)
 
         val m = focusRemainingSec / 60
         val s = focusRemainingSec % 60
-        timerTv?.text = "%02d:%02d".format(m, s)
+        val timeStr = "%02d:%02d".format(m, s)
+        val frac = if (focusTotalSec > 0) focusRemainingSec.toFloat() / focusTotalSec.toFloat() else 1f
+
+        val statusLabel = when {
+            focusRunning -> "FOCUSING"
+            focusRemainingSec < focusTotalSec -> "PAUSED"
+            else -> "READY"
+        }
+
+        ringView?.setState(frac, timeStr, statusLabel, parseAccentColor())
 
         if (focusRunning) {
-            statusTv?.text = "● FOCUSING"
-            statusTv?.setTextColor(Color.parseColor("#7FD88F"))
             toggleBtn?.text = "⏸ Pause"
         } else if (focusRemainingSec < focusTotalSec) {
-            statusTv?.text = "● PAUSED"
-            statusTv?.setTextColor(Color.parseColor("#FFB86C"))
             toggleBtn?.text = "▶ Resume"
         } else {
-            statusTv?.text = "● POMODORO FOCUS"
-            statusTv?.setTextColor(Color.parseColor("#E7B9F5"))
-            toggleBtn?.text = "▶ Start Focus"
+            toggleBtn?.text = "▶ Start"
         }
     }
 
@@ -790,6 +825,120 @@ class IslandOverlayService : Service() {
             collapseIsland(force = true)
             launchSafeIntent(Intent(this, MainActivity::class.java))
         }
+
+        // Clipboard share / inspect action
+        exp.findViewById<TextView>(R.id.tv_clipboard_content)?.setOnClickListener {
+            vibrateTick()
+            refreshClipboardFromSystem()
+            if (lastClipboardText.isNotBlank()) {
+                collapseIsland(force = true)
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, lastClipboardText)
+                }
+                val chooser = Intent.createChooser(share, "Share Clipboard Text").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                try {
+                    startActivity(chooser)
+                } catch (e: Exception) {}
+            }
+        }
+
+        // Quick Wi-Fi / Internet panel launcher (Android 10+ Settings Panel)
+        exp.findViewById<TextView>(R.id.btn_wifi_panel)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                launchSafeIntent(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
+            } else {
+                launchSafeIntent(Intent(Settings.ACTION_WIFI_SETTINGS))
+            }
+        }
+    }
+
+    private fun setupAppsLauncherControls(exp: View) {
+        exp.findViewById<TextView>(R.id.app_spotify)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchPackageOrWeb("com.spotify.music", "https://open.spotify.com")
+        }
+
+        exp.findViewById<TextView>(R.id.app_youtube)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchPackageOrWeb("com.google.android.youtube", "https://m.youtube.com")
+        }
+
+        exp.findViewById<TextView>(R.id.app_browser)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchSafeIntent(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com")))
+        }
+
+        exp.findViewById<TextView>(R.id.app_whatsapp)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchPackageOrWeb("com.whatsapp", "https://web.whatsapp.com")
+        }
+
+        exp.findViewById<TextView>(R.id.app_instagram)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchPackageOrWeb("com.instagram.android", "https://www.instagram.com")
+        }
+
+        exp.findViewById<TextView>(R.id.app_maps)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchPackageOrWeb("com.google.android.apps.maps", "https://maps.google.com")
+        }
+
+        exp.findViewById<TextView>(R.id.app_phone)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchSafeIntent(Intent(Intent.ACTION_DIAL))
+        }
+
+        exp.findViewById<TextView>(R.id.app_messages)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            val smsIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_APP_MESSAGING)
+            }
+            launchSafeIntent(smsIntent)
+        }
+
+        exp.findViewById<TextView>(R.id.app_files)?.setOnClickListener {
+            vibrateTick()
+            collapseIsland(force = true)
+            launchSafeIntent(Intent(Settings.ACTION_SETTINGS))
+        }
+    }
+
+    private fun launchPackageOrWeb(pkg: String, fallbackUrl: String) {
+        try {
+            val intent = packageManager.getLaunchIntentForPackage(pkg)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return
+            }
+        } catch (e: Exception) {}
+        launchSafeIntent(Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl)))
+    }
+
+    private fun refreshClipboardFromSystem() {
+        try {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+            val clip = cm.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val txt = clip.getItemAt(0)?.coerceToText(this)?.toString()?.trim() ?: ""
+                if (txt.isNotEmpty()) {
+                    lastClipboardText = txt
+                }
+            }
+        } catch (e: Exception) {}
     }
 
     private fun updateToolsState() {
@@ -806,6 +955,16 @@ class IslandOverlayService : Service() {
             else -> "🔔 Ring"
         }
         ringerTile?.text = modeText
+
+        refreshClipboardFromSystem()
+        val clipTag = exp.findViewById<TextView>(R.id.tv_clipboard_tag)
+        val clipTv = exp.findViewById<TextView>(R.id.tv_clipboard_content)
+        clipTag?.setTextColor(parseAccentColor())
+        clipTv?.text = if (lastClipboardText.isNotBlank()) {
+            lastClipboardText.replace("\n", " ")
+        } else {
+            "Nothing copied yet · Tap to refresh"
+        }
     }
 
     // ───────────────────────── Live Network Traffic & VPN / LAN / WAN ─────────────────────────
@@ -1096,9 +1255,13 @@ class IslandOverlayService : Service() {
             }
         }
         updateViews()
-        if (activeTab == 1) {
-            probeNetworkRouteAndWan(forceWan = cachedWanIp == "…")
-            updateSystemMetrics()
+        when (activeTab) {
+            1 -> {
+                probeNetworkRouteAndWan(forceWan = cachedWanIp == "…")
+                updateSystemMetrics()
+            }
+            2 -> updateFocusUI()
+            3 -> updateToolsState()
         }
 
         triggerExpandedAura(parseAccentColor(), 1200L)
@@ -1177,6 +1340,7 @@ class IslandOverlayService : Service() {
     private fun updateViews() {
         val accentColor = parseAccentColor()
         val now = SystemClock.elapsedRealtime()
+        val nowDate = Date()
 
         // 1. Update Compact Pill
         compactView?.let { v ->
@@ -1254,7 +1418,7 @@ class IslandOverlayService : Service() {
                 trailingTv?.visibility = View.VISIBLE
 
                 if (prefs.showIdleClockBattery) {
-                    val clockStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                    val clockStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(nowDate)
                     val batPct = getBatteryPercent()
                     titleTv?.text = if (isTorchOn) "⚡ Torch Active" else clockStr
                     trailingTv?.text = "$batPct%"
@@ -1271,10 +1435,16 @@ class IslandOverlayService : Service() {
         expandedView?.let { v ->
             (v as? IslandContainerView)?.accentColor = accentColor
 
+            // Update PC-Style Header Clock & Date
+            v.findViewById<TextView>(R.id.tv_header_time)?.text =
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(nowDate)
+            v.findViewById<TextView>(R.id.tv_header_date)?.text =
+                SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(nowDate)
+
             val titleTv = v.findViewById<TextView>(R.id.expanded_title)
             val artistTv = v.findViewById<TextView>(R.id.expanded_artist)
             val badgeTv = v.findViewById<TextView>(R.id.expanded_badge)
-            val artIv = v.findViewById<ImageView>(R.id.expanded_art)
+            val artView = v.findViewById<AlbumArtView>(R.id.expanded_art_view)
             val playBtn = v.findViewById<ImageButton>(R.id.btn_play_pause)
             val wavyBar = v.findViewById<WavyProgressBar>(R.id.expanded_wavy_progress)
             val expVis = v.findViewById<WaveformVisualizerView>(R.id.expanded_visualizer)
@@ -1293,17 +1463,7 @@ class IslandOverlayService : Service() {
             }
             badgeTv?.setTextColor(if (isPlaying) accentColor else Color.parseColor("#8E9099"))
 
-            if (currentAlbumArt != null && !currentAlbumArt!!.isRecycled) {
-                artIv?.setPadding(0, 0, 0, 0)
-                artIv?.clearColorFilter()
-                artIv?.imageTintList = null
-                artIv?.setImageBitmap(currentAlbumArt)
-            } else {
-                val pad = (12 * resources.displayMetrics.density).toInt()
-                artIv?.setPadding(pad, pad, pad, pad)
-                artIv?.setImageResource(R.drawable.ic_music)
-                artIv?.imageTintList = ColorStateList.valueOf(accentColor)
-            }
+            artView?.setState(currentAlbumArt, isPlaying, accentColor)
 
             playBtn?.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
             wavyBar?.setPlaybackState(currentPos, currentDur, isPlaying)

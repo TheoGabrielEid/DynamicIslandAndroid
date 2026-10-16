@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlay: Button
     private lateinit var btnNotification: Button
 
+    private lateinit var switchStartOnBoot: MaterialSwitch
     private lateinit var switchWanVpn: MaterialSwitch
     private lateinit var switchIdleClock: MaterialSwitch
     private lateinit var switchAutoExpand: MaterialSwitch
@@ -72,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         btnOverlay = findViewById(R.id.btn_perm_overlay)
         btnNotification = findViewById(R.id.btn_perm_notification)
 
+        switchStartOnBoot = findViewById(R.id.switch_start_on_boot)
         switchWanVpn = findViewById(R.id.switch_wan_vpn)
         switchIdleClock = findViewById(R.id.switch_idle_clock)
         switchAutoExpand = findViewById(R.id.switch_auto_expand)
@@ -108,6 +110,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         // Load saved preferences
+        switchStartOnBoot.isChecked = prefs.startOnBoot
         switchWanVpn.isChecked = prefs.wanVpnColor
         switchIdleClock.isChecked = prefs.showIdleClockBattery
         switchAutoExpand.isChecked = prefs.autoExpandOnSong
@@ -171,6 +174,10 @@ class MainActivity : AppCompatActivity() {
                 updateThemeChipSelection()
                 notifyServicePrefsChanged()
             }
+        }
+
+        switchStartOnBoot.setOnCheckedChangeListener { _, checked ->
+            prefs.startOnBoot = checked
         }
 
         switchWanVpn.setOnCheckedChangeListener { _, checked ->
