@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dynamic Island</string>
+    <string name="enable_service">Enable Dynamic Island</string>
+    <string name="service_running">Dynamic Island is Active</string>
+    <string name="service_stopped">Dynamic Island is Stopped</string>
+    <string name="permission_overlay_title">Overlay Permission</string>
+    <string name="permission_overlay_desc">Required to display the Dynamic Island over other apps and camera notch.</string>
+    <string name="permission_notification_title">Notification &amp; Media Access</string>
+    <string name="permission_notification_desc">Required to read music title, artist, progress and show notifications in the island.</string>
+    <string name="grant_permission">Grant</string>
+    <string name="granted">Granted</string>
+    <string name="notch_settings_title">Camera Notch &amp; Position Setup</string>
+    <string name="notch_x">Horizontal Offset (X)</string>
+    <string name="notch_y">Vertical Position (Y)</string>
+    <string name="island_width">Compact Width</string>
+    <string name="island_height">Compact Height</string>
+</resources>

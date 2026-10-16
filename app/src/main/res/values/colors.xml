@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="island_surface">#000000</color>
+    <color name="island_glass_stroke">#26FFFFFF</color>
+    <color name="island_primary">#6750A4</color>
+    <color name="island_tertiary">#7D5260</color>
+    <color name="island_text_primary">#FFFFFF</color>
+    <color name="island_text_secondary">#9EFFFFFF</color>
+    <color name="island_track_bg">#26FFFFFF</color>
+    <color name="island_charging">#4ADE80</color>
+    <color name="island_battery_low">#EF4444</color>
+</resources>
