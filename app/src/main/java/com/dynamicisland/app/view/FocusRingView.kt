@@ -25,7 +25,7 @@ class FocusRingView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private var targetFraction: Float = 1f
-    private var animatedFraction: Float = 1f
+    private var displayFraction: Float = 1f
     private var timeText: String = "25:00"
     private var statusText: String = "READY"
     private var ringColor: Int = Color.parseColor("#E7B9F5")
@@ -73,14 +73,14 @@ class FocusRingView @JvmOverloads constructor(
         this.ringColor = accentColor
 
         if (kotlin.math.abs(clamped - targetFraction) > 0.002f) {
-            val startVal = animatedFraction
+            val startVal = displayFraction
             targetFraction = clamped
             animator?.cancel()
             animator = ValueAnimator.ofFloat(startVal, clamped).apply {
                 duration = 280L
                 interpolator = DecelerateInterpolator()
-                addUpdateListener {
-                    animatedFraction = it.animatedValue as Float
+                addUpdateListener { anim ->
+                    displayFraction = anim.animatedValue as Float
                     invalidate()
                 }
                 start()
@@ -116,7 +116,7 @@ class FocusRingView @JvmOverloads constructor(
         canvas.drawArc(arcRect, 0f, 360f, false, bgPaint)
 
         // 2. Active countdown arc
-        val sweep = -animatedFraction * 360f
+        val sweep = -displayFraction * 360f
         if (kotlin.math.abs(sweep) > 0.8f) {
             canvas.drawArc(arcRect, -90f, sweep, false, glowPaint)
             canvas.drawArc(arcRect, -90f, sweep, false, fgPaint)
