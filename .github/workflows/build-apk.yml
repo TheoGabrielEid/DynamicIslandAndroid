@@ -29,16 +29,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build APK with Gradle
-        run: ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Rename and Stage APK
         run: |
           mkdir -p build_output
-          if ls app/build/outputs/apk/release/*.apk 1> /dev/null 2>&1; then
-            cp app/build/outputs/apk/release/*.apk build_output/DynamicIsland-v1.0.0.apk
-          else
-            cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-v1.0.0.apk
-          fi
+          cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-v1.0.0.apk
+          ls -la build_output/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
