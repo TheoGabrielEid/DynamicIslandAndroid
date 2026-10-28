@@ -5,19 +5,34 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingTop="5dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="10dp">
+    android:padding="0dp">
+
+    <com.dynamicisland.app.view.MaxHeightNestedScrollView
+        android:id="@+id/expanded_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:fillViewport="false"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="7dp">
 
     <LinearLayout
         android:id="@+id/top_notch_dismiss_bar"
         android:layout_width="match_parent"
-        android:layout_height="19dp"
+        android:layout_height="13dp"
         android:gravity="center">
         <View
-            android:layout_width="42dp"
-            android:layout_height="4dp"
+            android:layout_width="34dp"
+            android:layout_height="3dp"
             android:alpha="0.45"
             android:background="@drawable/bg_pill_button" />
     </LinearLayout>
@@ -25,25 +40,25 @@
     <LinearLayout
         android:id="@+id/header_row"
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="36dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="3dp"
         android:paddingEnd="3dp">
         <ImageView
-            android:layout_width="25dp"
-            android:layout_height="25dp"
+            android:layout_width="21dp"
+            android:layout_height="21dp"
             android:src="@drawable/ic_music"
             android:contentDescription="Music player"
             app:tint="@color/m3_primary" />
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="Now Playing"
             android:textColor="@color/m3_on_surface"
-            android:textSize="15sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
         <TextView
             android:id="@+id/btn_pin"
@@ -87,7 +102,7 @@
         <ImageButton android:id="@+id/banner_call_answer" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginStart="4dp" android:background="@drawable/bg_call_answer" android:contentDescription="Answer call" android:padding="10dp" android:src="@drawable/ic_call_answer" android:visibility="gone" app:tint="@android:color/white" />
         <ImageButton android:id="@+id/banner_call_decline" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginStart="6dp" android:background="@drawable/bg_call_decline" android:contentDescription="Decline call" android:padding="10dp" android:src="@drawable/ic_call_decline" android:visibility="gone" app:tint="@android:color/white" />
         <TextView android:id="@+id/banner_notif_mark_read" android:layout_width="wrap_content" android:layout_height="30dp" android:layout_marginStart="3dp" android:background="@drawable/bg_tool_tile" android:gravity="center" android:paddingStart="8dp" android:paddingEnd="8dp" android:text="Read" android:textColor="@color/m3_primary" android:textSize="10sp" android:textStyle="bold" android:visibility="gone" />
-        <TextView android:id="@+id/banner_notif_btn_open" android:layout_width="wrap_content" android:layout_height="30dp" android:gravity="center" android:paddingStart="9dp" android:paddingEnd="9dp" android:text="Open" android:textColor="@color/m3_primary" android:textSize="11sp" android:textStyle="bold" />
+        <TextView android:id="@+id/banner_notif_btn_open" android:layout_width="wrap_content" android:layout_height="30dp" android:gravity="center" android:paddingStart="9dp" android:paddingEnd="9dp" android:text="Open" android:textColor="@color/m3_primary" android:textSize="10sp" android:textStyle="bold" />
         <ImageButton android:id="@+id/banner_notif_btn_dismiss" android:layout_width="26dp" android:layout_height="26dp" android:background="@drawable/bg_pill_button" android:padding="7dp" android:src="@drawable/ic_close" app:tint="@color/m3_muted" />
     </LinearLayout>
 
@@ -97,32 +112,32 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_media_main_card"
         android:orientation="vertical"
-        android:padding="15dp">
+        android:padding="10dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
             <com.dynamicisland.app.view.AlbumArtView
                 android:id="@+id/expanded_art_view"
-                android:layout_width="76dp"
-                android:layout_height="76dp" />
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="13dp" android:layout_weight="1" android:orientation="vertical">
+                android:layout_width="54dp"
+                android:layout_height="54dp" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
                     <TextView android:id="@+id/expanded_badge" android:layout_width="wrap_content" android:layout_height="18dp" android:background="@drawable/bg_app_badge" android:gravity="center" android:paddingStart="8dp" android:paddingEnd="8dp" android:text="● IDLE" android:textColor="@color/m3_muted" android:textSize="9sp" android:textStyle="bold" />
                     <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
                     <com.dynamicisland.app.view.WaveformVisualizerView android:id="@+id/expanded_visualizer" android:layout_width="54dp" android:layout_height="16dp" />
                 </LinearLayout>
-                <TextView android:id="@+id/expanded_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:ellipsize="end" android:singleLine="true" android:text="Nothing playing" android:textColor="@color/m3_on_surface" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:id="@+id/expanded_artist" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:ellipsize="end" android:singleLine="true" android:text="Start music on your phone" android:textColor="@color/m3_on_surface_var" android:textSize="12sp" />
+                <TextView android:id="@+id/expanded_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:ellipsize="end" android:singleLine="true" android:text="Nothing playing" android:textColor="@color/m3_on_surface" android:textSize="14sp" android:textStyle="bold" />
+                <TextView android:id="@+id/expanded_artist" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:ellipsize="end" android:singleLine="true" android:text="Start music on your phone" android:textColor="@color/m3_on_surface_var" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
-        <com.dynamicisland.app.view.WavyProgressBar android:id="@+id/expanded_wavy_progress" android:layout_width="match_parent" android:layout_height="34dp" android:layout_marginTop="9dp" />
+        <com.dynamicisland.app.view.WavyProgressBar android:id="@+id/expanded_wavy_progress" android:layout_width="match_parent" android:layout_height="16dp" android:layout_marginTop="5dp" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:paddingTop="3dp">
-            <ImageButton android:id="@+id/btn_prev" android:layout_width="38dp" android:layout_height="38dp" android:background="@drawable/bg_pill_button" android:contentDescription="Previous track" android:padding="9dp" android:src="@drawable/ic_prev" app:tint="@color/m3_on_surface" />
-            <ImageButton android:id="@+id/btn_play_pause" android:layout_width="46dp" android:layout_height="46dp" android:layout_marginStart="10dp" android:layout_marginEnd="10dp" android:background="@drawable/bg_play_btn" android:contentDescription="Play or pause" android:padding="11dp" android:src="@drawable/ic_play" app:tint="@color/m3_on_primary" />
-            <ImageButton android:id="@+id/btn_next" android:layout_width="38dp" android:layout_height="38dp" android:background="@drawable/bg_pill_button" android:contentDescription="Next track" android:padding="9dp" android:src="@drawable/ic_next" app:tint="@color/m3_on_surface" />
+            <ImageButton android:id="@+id/btn_prev" android:layout_width="34dp" android:layout_height="30dp" android:background="@drawable/bg_pill_button" android:contentDescription="Previous track" android:padding="9dp" android:src="@drawable/ic_prev" app:tint="@color/m3_on_surface" />
+            <ImageButton android:id="@+id/btn_play_pause" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginStart="8dp" android:layout_marginEnd="10dp" android:background="@drawable/bg_play_btn" android:contentDescription="Play or pause" android:padding="11dp" android:src="@drawable/ic_play" app:tint="@color/m3_on_primary" />
+            <ImageButton android:id="@+id/btn_next" android:layout_width="34dp" android:layout_height="30dp" android:background="@drawable/bg_pill_button" android:contentDescription="Next track" android:padding="9dp" android:src="@drawable/ic_next" app:tint="@color/m3_on_surface" />
             <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
-            <LinearLayout android:id="@+id/vol_pill" android:layout_width="wrap_content" android:layout_height="36dp" android:background="@drawable/bg_volume_pill" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="7dp" android:paddingEnd="8dp">
-                <ImageButton android:id="@+id/btn_vol_icon" android:layout_width="23dp" android:layout_height="23dp" android:background="@android:color/transparent" android:contentDescription="Mute or unmute" android:src="@drawable/ic_volume" app:tint="@color/m3_on_surface_var" />
-                <SeekBar android:id="@+id/slider_volume" android:layout_width="72dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:max="100" android:progress="70" android:progressDrawable="@drawable/volume_progress" android:splitTrack="false" android:thumb="@drawable/volume_thumb" />
-                <TextView android:id="@+id/tv_volume_lbl" android:layout_width="29dp" android:layout_height="wrap_content" android:gravity="end" android:text="70%" android:textColor="@color/m3_on_surface_var" android:textSize="10sp" android:textStyle="bold" />
+            <LinearLayout android:id="@+id/vol_pill" android:layout_width="wrap_content" android:layout_height="32dp" android:background="@drawable/bg_volume_pill" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="7dp" android:paddingEnd="8dp">
+                <ImageButton android:id="@+id/btn_vol_icon" android:layout_width="20dp" android:layout_height="20dp" android:background="@android:color/transparent" android:contentDescription="Mute or unmute" android:src="@drawable/ic_volume" app:tint="@color/m3_on_surface_var" />
+                <SeekBar android:id="@+id/slider_volume" android:layout_width="54dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:max="100" android:progress="70" android:progressDrawable="@drawable/volume_progress" android:splitTrack="false" android:thumb="@drawable/volume_thumb" />
+                <TextView android:id="@+id/tv_volume_lbl" android:layout_width="23dp" android:layout_height="wrap_content" android:gravity="end" android:text="70%" android:textColor="@color/m3_on_surface_var" android:textSize="10sp" android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -131,22 +146,22 @@
         android:id="@+id/timer_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
+        android:layout_marginTop="7dp"
         android:background="@drawable/bg_media_main_card"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="9dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
-            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:contentDescription="Timer" android:src="@drawable/ic_timer" app:tint="@color/m3_primary" />
+            <ImageView android:layout_width="18dp" android:layout_height="18dp" android:contentDescription="Timer" android:src="@drawable/ic_timer" app:tint="@color/m3_primary" />
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:text="Timer" android:textColor="@color/m3_on_surface" android:textSize="13sp" android:textStyle="bold" />
-            <TextView android:id="@+id/timer_remaining" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Choose a time" android:textColor="@color/m3_on_surface" android:textSize="16sp" android:textStyle="bold" />
+            <TextView android:id="@+id/timer_remaining" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Choose a time" android:textColor="@color/m3_on_surface" android:textSize="14sp" android:textStyle="bold" />
         </LinearLayout>
-        <TextView android:id="@+id/timer_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Quick countdown" android:textColor="@color/m3_on_surface_var" android:textSize="10sp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="9dp" android:gravity="center_vertical" android:orientation="horizontal">
-            <TextView android:id="@+id/timer_5m" android:layout_width="0dp" android:layout_height="34dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="5 min" android:textColor="@color/m3_on_surface" android:textSize="11sp" android:textStyle="bold" />
-            <TextView android:id="@+id/timer_15m" android:layout_width="0dp" android:layout_height="34dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="15 min" android:textColor="@color/m3_on_surface" android:textSize="11sp" android:textStyle="bold" />
-            <TextView android:id="@+id/timer_30m" android:layout_width="0dp" android:layout_height="34dp" android:layout_marginEnd="8dp" android:layout_weight="1" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="30 min" android:textColor="@color/m3_on_surface" android:textSize="11sp" android:textStyle="bold" />
-            <TextView android:id="@+id/timer_toggle" android:layout_width="wrap_content" android:layout_height="34dp" android:background="@drawable/bg_tab_selected" android:gravity="center" android:minWidth="58dp" android:paddingStart="8dp" android:paddingEnd="8dp" android:text="Start" android:textColor="@color/m3_on_surface" android:textSize="11sp" android:textStyle="bold" />
-            <TextView android:id="@+id/timer_stop" android:layout_width="40dp" android:layout_height="34dp" android:layout_marginStart="6dp" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="Stop" android:textColor="@color/m3_error" android:textSize="10sp" android:textStyle="bold" />
+        <TextView android:id="@+id/timer_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Quick countdown" android:textColor="@color/m3_on_surface_var" android:textSize="10sp" android:visibility="gone" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/timer_5m" android:layout_width="0dp" android:layout_height="30dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="5 min" android:textColor="@color/m3_on_surface" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:id="@+id/timer_15m" android:layout_width="0dp" android:layout_height="30dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="15 min" android:textColor="@color/m3_on_surface" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:id="@+id/timer_30m" android:layout_width="0dp" android:layout_height="30dp" android:layout_marginEnd="8dp" android:layout_weight="1" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="30 min" android:textColor="@color/m3_on_surface" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:id="@+id/timer_toggle" android:layout_width="wrap_content" android:layout_height="30dp" android:background="@drawable/bg_tab_selected" android:gravity="center" android:minWidth="58dp" android:paddingStart="8dp" android:paddingEnd="8dp" android:text="Start" android:textColor="@color/m3_on_surface" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:id="@+id/timer_stop" android:layout_width="40dp" android:layout_height="30dp" android:layout_marginStart="6dp" android:background="@drawable/bg_tool_tile" android:gravity="center" android:text="Stop" android:textColor="@color/m3_error" android:textSize="10sp" android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 
@@ -154,7 +169,7 @@
         android:id="@+id/nav_live_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
+        android:layout_marginTop="7dp"
         android:background="@drawable/bg_media_main_card"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -164,15 +179,15 @@
         android:paddingBottom="11dp"
         android:visibility="gone">
         <ImageView
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:contentDescription="Navigation"
             android:src="@drawable/ic_navigation"
             app:tint="#7FD88F" />
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:orientation="vertical">
             <TextView
@@ -224,25 +239,27 @@
         android:id="@+id/page_system"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
+        android:layout_marginTop="7dp"
         android:background="@drawable/bg_media_main_card"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="14dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="12dp">
-        <FrameLayout android:layout_width="42dp" android:layout_height="42dp" android:background="@drawable/bg_compact_badge">
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp">
+        <FrameLayout android:layout_width="34dp" android:layout_height="34dp" android:background="@drawable/bg_compact_badge">
             <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:src="@drawable/ic_bolt" app:tint="@color/m3_on_primary" />
         </FrameLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="11dp" android:layout_weight="1" android:orientation="vertical">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Battery" android:textColor="@color/m3_on_surface" android:textSize="13sp" android:textStyle="bold" />
             <TextView android:id="@+id/battery_state" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:ellipsize="end" android:maxLines="2" android:text="Battery status" android:textColor="@color/m3_on_surface_var" android:textSize="10sp" />
         </LinearLayout>
-        <TextView android:id="@+id/battery_percent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="@color/m3_on_surface" android:textSize="20sp" android:textStyle="bold" />
+        <TextView android:id="@+id/battery_percent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="@color/m3_on_surface" android:textSize="18sp" android:textStyle="bold" />
     </LinearLayout>
 
-    <FrameLayout android:id="@+id/bottom_grabber_area" android:layout_width="match_parent" android:layout_height="15dp" android:layout_marginTop="4dp">
-        <View android:layout_width="38dp" android:layout_height="3dp" android:layout_gravity="center" android:background="@drawable/bg_pill_button" />
+    <FrameLayout android:id="@+id/bottom_grabber_area" android:layout_width="match_parent" android:layout_height="9dp" android:layout_marginTop="2dp">
+        <View android:layout_width="30dp" android:layout_height="3dp" android:layout_gravity="center" android:background="@drawable/bg_pill_button" />
     </FrameLayout>
+      </LinearLayout>
+    </com.dynamicisland.app.view.MaxHeightNestedScrollView>
 </com.dynamicisland.app.view.IslandContainerView>

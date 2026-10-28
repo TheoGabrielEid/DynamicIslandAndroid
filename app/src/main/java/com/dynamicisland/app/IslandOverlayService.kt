@@ -55,6 +55,7 @@ import androidx.core.app.NotificationCompat
 import com.dynamicisland.app.view.AlbumArtView
 import com.dynamicisland.app.view.FocusRingView
 import com.dynamicisland.app.view.IslandContainerView
+import com.dynamicisland.app.view.MaxHeightNestedScrollView
 import com.dynamicisland.app.view.NetworkGraphView
 import com.dynamicisland.app.view.RingGaugeView
 import com.dynamicisland.app.view.WaveformVisualizerView
@@ -565,7 +566,10 @@ class IslandOverlayService : Service() {
             cornerRadiusDp = 28f
         }
         val screenWidth = resources.displayMetrics.widthPixels
-        val expandedWidth = (screenWidth * 0.95f).toInt()
+        val expandedWidth = min((screenWidth * 0.92f).toInt(), (440f * density).toInt())
+        val expandedHeight = min((resources.displayMetrics.heightPixels * 0.42f).toInt(), (340f * density).toInt())
+            .coerceAtLeast((220f * density).toInt())
+        expandedView?.findViewById<MaxHeightNestedScrollView>(R.id.expanded_scroll)?.maxHeightPx = expandedHeight
 
         expandedParams = WindowManager.LayoutParams(
             expandedWidth,
@@ -620,6 +624,12 @@ class IslandOverlayService : Service() {
             }
         }
         expandedParams?.let { p ->
+            val screenWidth = resources.displayMetrics.widthPixels
+            p.width = min((screenWidth * 0.92f).toInt(), (440f * density).toInt())
+            (expandedView?.findViewById<MaxHeightNestedScrollView>(R.id.expanded_scroll))?.maxHeightPx =
+                min((resources.displayMetrics.heightPixels * 0.42f).toInt(), (340f * density).toInt())
+                    .coerceAtLeast((220f * density).toInt())
+            p.height = WindowManager.LayoutParams.WRAP_CONTENT
             p.y = pillYPx
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -1980,6 +1990,8 @@ class IslandOverlayService : Service() {
         // 2. Update Expanded Card
         expandedView?.let { v ->
             (v as? IslandContainerView)?.accentColor = accentColor
+            val hasMediaSession = currentTitle.isNotBlank() && currentTitle != "Nothing playing"
+            v.findViewById<View>(R.id.page_media)?.visibility = if (hasMediaSession) View.VISIBLE else View.GONE
 
             val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
             val batteryLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
@@ -2023,6 +2035,8 @@ class IslandOverlayService : Service() {
                 timerRemainingMs > 0L -> "Resume"
                 else -> "Start"
             }
+            v.findViewById<View>(R.id.timer_stop)?.visibility =
+                if (timerRunning || timerRemainingMs > 0L) View.VISIBLE else View.GONE
 
             val navCard = v.findViewById<View>(R.id.nav_live_card)
             if (isNavigating && prefs.showMapsNavigation) {
