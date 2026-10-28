@@ -12,3 +12,6 @@ build/
 app/build/
 build_output/
 *.apk
+
+*.jks
+*.keystore

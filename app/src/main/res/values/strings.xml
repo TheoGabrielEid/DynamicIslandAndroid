@@ -6,7 +6,7 @@
     <string name="permission_overlay_title">Overlay Permission</string>
     <string name="permission_overlay_desc">Required to display the Dynamic Island over other apps and camera notch.</string>
     <string name="permission_notification_title">Notification &amp; Media Access</string>
-    <string name="permission_notification_desc">Required to read music title, artist, progress and show notifications in the island.</string>
+    <string name="permission_notification_desc">Lets the island display music details and notifications locally on this device. Notification content is not sent to a server.</string>
     <string name="grant_permission">Grant</string>
     <string name="granted">Granted</string>
     <string name="notch_settings_title">Camera Notch &amp; Position Setup</string>

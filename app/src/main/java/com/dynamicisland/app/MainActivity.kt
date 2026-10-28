@@ -25,7 +25,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnNotification: Button
 
     private lateinit var switchStartOnBoot: MaterialSwitch
-    private lateinit var switchWanVpn: MaterialSwitch
     private lateinit var switchIdleClock: MaterialSwitch
     private lateinit var switchAutoExpand: MaterialSwitch
     private lateinit var switchDoubleTap: MaterialSwitch
@@ -82,7 +81,6 @@ class MainActivity : AppCompatActivity() {
         btnNotification = findViewById(R.id.btn_perm_notification)
 
         switchStartOnBoot = findViewById(R.id.switch_start_on_boot)
-        switchWanVpn = findViewById(R.id.switch_wan_vpn)
         switchIdleClock = findViewById(R.id.switch_idle_clock)
         switchAutoExpand = findViewById(R.id.switch_auto_expand)
         switchDoubleTap = findViewById(R.id.switch_double_tap)
@@ -126,7 +124,6 @@ class MainActivity : AppCompatActivity() {
 
         // Load saved preferences
         switchStartOnBoot.isChecked = prefs.startOnBoot
-        switchWanVpn.isChecked = prefs.wanVpnColor
         switchIdleClock.isChecked = prefs.showIdleClockBattery
         switchAutoExpand.isChecked = prefs.autoExpandOnSong
         switchDoubleTap.isChecked = prefs.doubleTapPlayPause
@@ -216,11 +213,6 @@ class MainActivity : AppCompatActivity() {
 
         switchStartOnBoot.setOnCheckedChangeListener { _, checked ->
             prefs.startOnBoot = checked
-        }
-
-        switchWanVpn.setOnCheckedChangeListener { _, checked ->
-            prefs.wanVpnColor = checked
-            notifyServicePrefsChanged()
         }
 
         switchIdleClock.setOnCheckedChangeListener { _, checked ->

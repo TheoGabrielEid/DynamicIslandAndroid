@@ -11,7 +11,7 @@ class PreferencesManager(context: Context) {
         set(value) = prefs.edit().putBoolean("service_enabled", value).apply()
 
     var startOnBoot: Boolean
-        get() = prefs.getBoolean("start_on_boot", true)
+        get() = prefs.getBoolean("start_on_boot", false)
         set(value) = prefs.edit().putBoolean("start_on_boot", value).apply()
 
     var notchXOffset: Int
@@ -49,10 +49,6 @@ class PreferencesManager(context: Context) {
     var longPressFlashlight: Boolean
         get() = prefs.getBoolean("long_press_torch", true)
         set(value) = prefs.edit().putBoolean("long_press_torch", value).apply()
-
-    var wanVpnColor: Boolean
-        get() = prefs.getBoolean("wan_vpn_color", true)
-        set(value) = prefs.edit().putBoolean("wan_vpn_color", value).apply()
 
     var showMapsNavigation: Boolean
         get() = prefs.getBoolean("show_maps_nav", true)

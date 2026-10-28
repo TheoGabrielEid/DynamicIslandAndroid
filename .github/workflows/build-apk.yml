@@ -28,27 +28,55 @@ jobs:
       - name: Make Gradle Executable
         run: chmod +x gradlew
 
+      - name: Prepare stable release signing key
+        if: github.event_name != 'pull_request'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_KEYSTORE_PASSWORD" && test -n "$ANDROID_KEY_ALIAS" && test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::Add release signing secrets before publishing: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."; exit 1; }
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dynamic-island-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/dynamic-island-release.jks" >> "$GITHUB_ENV"
+
       - name: Build APK with Gradle
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ./gradlew assembleDebug --no-daemon 2>&1 | tee build.log || {
+          set +e
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            ./gradlew assembleDebug --no-daemon 2>&1 | tee build.log
+          else
+            ./gradlew assembleRelease --no-daemon 2>&1 | tee build.log
+          fi
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
             grep -E "e: |ERROR:|FAILURE:|What went wrong" -A 3 build.log | while IFS= read -r line; do
               echo "::error::$line"
             done
-            exit 1
-          }
+            exit "$status"
+          fi
 
       - name: Rename and Stage APK
         run: |
           mkdir -p build_output
-          cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-v1.4.0.apk
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-debug.apk
+          else
+            cp app/build/outputs/apk/release/*.apk build_output/DynamicIsland-v1.5.0.apk
+          fi
           ls -la build_output/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DynamicIsland-APK
-          path: build_output/DynamicIsland-v1.4.0.apk
+          path: build_output/*.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -56,12 +84,17 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.0
-          name: "Dynamic Island Android v1.4.0"
+          tag_name: v1.5.0
+          name: "Dynamic Island Android v1.5.0"
           body: |
             ### Dynamic Island for Android
 
-            This update makes the island behave like a true glanceable surface:
+            This update improves privacy and uses a production signing key:
+            - Removes unused public-IP checks and Internet/network-state permissions.
+            - Makes boot startup opt-in and disables Android backup for app data.
+            - Publishes a release-signed APK; release signing secrets must be configured in the repository.
+
+            This update also keeps the island glanceable:
             - The idle notch stays hidden until media, timers, calls, notifications, navigation, or a short alert is active.
             - Notch taps reliably open and close the combined panel, with touch handling exposed to accessibility services.
             - Compact island animations fade and scale smoothly as activity starts and ends.
@@ -73,6 +106,6 @@ jobs:
             - Google Maps next-turn directions, ETA, and live distance shown in meters.
             - Answer and decline buttons when the calling app publishes those actions in its notification.
             - Mark as read for notifications that expose a supported action.
-          files: build_output/DynamicIsland-v1.4.0.apk
+          files: build_output/DynamicIsland-v1.5.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

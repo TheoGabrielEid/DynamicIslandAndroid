@@ -46,7 +46,7 @@ A native Android camera punch-hole overlay (`dynamicSpot` style) bringing the Ap
 ## 📲 How to Install & Set Up on Your Phone
 
 1. **Install the APK:**
-   - Tap the downloaded APK for the latest release (for example, `DynamicIsland-v1.4.0.apk`).
+   - Tap the downloaded APK for the latest release (for example, `DynamicIsland-v1.5.0.apk`).
    - If prompted by Android, tap **Settings** and allow **Install unknown apps**.
    - Tap **Install** and open the app.
 
@@ -92,3 +92,22 @@ DynamicIslandAndroid/
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
+
+
+## Release signing
+
+Release APKs use a stable private signing key. Create one once and keep a secure backup; future updates must use the same key. Never commit the keystore or share its passwords in chat. The first production-signed APK cannot update an already-installed debug-signed copy; uninstall the old copy before installing v1.5.0.
+
+On Windows, create a keystore with the JDK's `keytool`:
+
+```powershell
+keytool -genkeypair -v -keystore DynamicIslandRelease.jks -alias dynamicisland -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Convert the keystore to Base64 and add it with its password and alias as repository Actions secrets under **Settings → Secrets and variables → Actions**:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('.\DynamicIslandRelease.jks'))
+```
+
+Add `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`dynamicisland`), and `ANDROID_KEY_PASSWORD`. Pull request builds use the debug signer; release builds stop if the private signing secrets are missing.
