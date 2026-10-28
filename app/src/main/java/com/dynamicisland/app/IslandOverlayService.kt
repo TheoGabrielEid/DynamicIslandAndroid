@@ -49,6 +49,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.dynamicisland.app.view.AlbumArtView
 import com.dynamicisland.app.view.FocusRingView
@@ -124,6 +125,15 @@ class IslandOverlayService : Service() {
     private var focusRemainingSec: Int = 25 * 60
     private var focusRunning: Boolean = false
 
+    private var timerFinishAtMs: Long = 0L
+    private var timerRemainingMs: Long = 0L
+    private var timerRunning: Boolean = false
+    private var previousBatteryCharging: Boolean? = null
+    private var previousBatteryPercent: Int = -1
+    private var previousBatterySampleAtMs: Long = 0L
+    private var batteryPercentPerHour: Double = 0.0
+    private var lowBatteryAlertShown: Boolean = false
+
     // Flashlight / Torch state
     private var isTorchOn: Boolean = false
     private var cameraId: String? = null
@@ -182,11 +192,13 @@ class IslandOverlayService : Service() {
 
     private val notifListener: (NotificationStateBridge.AppNotification?) -> Unit = { notif ->
         activeNotification = notif
-        if (notif != null && prefs.showAppNotifications) {
-            notifActiveUntil = SystemClock.elapsedRealtime() + 6500L
+        if (notif != null && (prefs.showAppNotifications || notif.isCall)) {
+            notifActiveUntil = if (notif.isCall) Long.MAX_VALUE else SystemClock.elapsedRealtime() + 6500L
             val color = getNotificationAccentColor(notif.packageName)
             vibrateAlert()
-            if (isExpanded) {
+            if (notif.isCall && !isExpanded) {
+                expandIsland()
+            } else if (isExpanded) {
                 triggerExpandedAura(color, 1600L)
             } else {
                 (compactView as? IslandContainerView)?.triggerAura(color, 2600L)
@@ -259,6 +271,16 @@ class IslandOverlayService : Service() {
                         showToastPill("🎉 Focus Complete!", R.drawable.ic_music, Color.parseColor("#7FD88F"))
                     }
                     updateFocusUI()
+                }
+
+                if (timerRunning) {
+                    timerRemainingMs = (timerFinishAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+                    if (timerRemainingMs == 0L) {
+                        timerRunning = false
+                        persistCountdownTimer()
+                        vibrateAlert()
+                        showToastPill("Timer complete", R.drawable.ic_timer, Color.parseColor("#7FD88F"))
+                    }
                 }
 
                 // 2. Sample Network Traffic (always keep 60-sec history fresh like PC NetMeter)
@@ -351,6 +373,7 @@ class IslandOverlayService : Service() {
         isRunning = true
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         prefs = PreferencesManager(this)
+        restoreCountdownTimer()
 
         startForeground(1001, createForegroundNotification())
 
@@ -776,6 +799,18 @@ class IslandOverlayService : Service() {
             exp.findViewById<View>(R.id.banner_notification)?.visibility = View.GONE
             updateViews()
         }
+        exp.findViewById<View>(R.id.banner_call_answer)?.setOnClickListener {
+            performCallAction(answer = true)
+        }
+        exp.findViewById<View>(R.id.banner_call_decline)?.setOnClickListener {
+            performCallAction(answer = false)
+        }
+        exp.findViewById<View>(R.id.banner_notif_mark_read)?.setOnClickListener { performMarkReadAction() }
+        exp.findViewById<View>(R.id.timer_5m)?.setOnClickListener { startCountdown(5) }
+        exp.findViewById<View>(R.id.timer_15m)?.setOnClickListener { startCountdown(15) }
+        exp.findViewById<View>(R.id.timer_30m)?.setOnClickListener { startCountdown(30) }
+        exp.findViewById<View>(R.id.timer_toggle)?.setOnClickListener { toggleCountdown() }
+        exp.findViewById<View>(R.id.timer_stop)?.setOnClickListener { stopCountdown() }
 
         // Swipe up to collapse or swipe left/right to cycle tabs!
         val swipeDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
@@ -787,14 +822,8 @@ class IslandOverlayService : Service() {
             ): Boolean {
                 if (e1 == null) return false
                 val dy = e1.y - e2.y
-                val dx = e2.x - e1.x
                 if (dy > 45f && abs(velocityY) > abs(velocityX) && abs(velocityY) > 180f) {
                     collapseIsland(force = true)
-                    return true
-                }
-                if (abs(dx) > 65f && abs(velocityX) > abs(velocityY) && abs(velocityX) > 220f) {
-                    val nextTab = if (dx < 0) (activeTab + 1) % 6 else (activeTab + 5) % 6
-                    switchTab(nextTab)
                     return true
                 }
                 return false
@@ -897,6 +926,154 @@ class IslandOverlayService : Service() {
 
         // Navigation Controls
         setupNavControls(exp)
+    }
+
+    private fun performCallAction(answer: Boolean) {
+        val notif = activeNotification ?: return
+        val action = if (answer) notif.answerIntent else notif.declineIntent
+        if (action == null) {
+            Toast.makeText(this, "This call notification has no ${if (answer) "answer" else "decline"} action", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            action.send()
+            vibrateTick()
+            activeNotification = null
+            notifActiveUntil = 0L
+            NotificationStateBridge.dismissCurrent(notif.key)
+            collapseIsland(force = true)
+            updateViews()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not ${if (answer) "answer" else "decline"} this call", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun performMarkReadAction() {
+        val notif = activeNotification ?: return
+        val action = notif.markReadIntent ?: return
+        try {
+            action.send()
+            vibrateTick()
+            activeNotification = null
+            notifActiveUntil = 0L
+            NotificationStateBridge.dismissCurrent(notif.key)
+            updateViews()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not mark this notification as read", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun timerStore() = getSharedPreferences("dynamic_island_timer", Context.MODE_PRIVATE)
+
+    private fun restoreCountdownTimer() {
+        val store = timerStore()
+        timerRunning = store.getBoolean("running", false)
+        timerFinishAtMs = store.getLong("finish_at", 0L)
+        timerRemainingMs = if (timerRunning) {
+            (timerFinishAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        } else store.getLong("remaining", 0L).coerceAtLeast(0L)
+        if (timerRunning && timerRemainingMs == 0L) {
+            timerRunning = false
+            persistCountdownTimer()
+        }
+    }
+
+    private fun persistCountdownTimer() {
+        timerStore().edit().putBoolean("running", timerRunning)
+            .putLong("finish_at", timerFinishAtMs)
+            .putLong("remaining", timerRemainingMs).apply()
+    }
+
+    private fun startCountdown(minutes: Int) {
+        timerRemainingMs = minutes.coerceAtLeast(1) * 60_000L
+        timerFinishAtMs = System.currentTimeMillis() + timerRemainingMs
+        timerRunning = true
+        persistCountdownTimer()
+        vibrateTick()
+        updateViews()
+    }
+
+    private fun toggleCountdown() {
+        if (timerRunning) {
+            timerRemainingMs = (timerFinishAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+            timerRunning = false
+        } else if (timerRemainingMs > 0L) {
+            timerFinishAtMs = System.currentTimeMillis() + timerRemainingMs
+            timerRunning = true
+        } else {
+            Toast.makeText(this, "Choose 5, 15, or 30 minutes first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        persistCountdownTimer()
+        vibrateTick()
+        updateViews()
+    }
+
+    private fun stopCountdown() {
+        timerRunning = false
+        timerFinishAtMs = 0L
+        timerRemainingMs = 0L
+        persistCountdownTimer()
+        vibrateTick()
+        updateViews()
+    }
+
+    private fun formatCountdown(milliseconds: Long): String {
+        val seconds = (milliseconds.coerceAtLeast(0L) + 999L) / 1000L
+        return "%02d:%02d".format(seconds / 60L, seconds % 60L)
+    }
+
+    private fun batteryChargeDescription(batteryIntent: Intent?, percent: Int, charging: Boolean): String {
+        val now = SystemClock.elapsedRealtime()
+        if (previousBatteryCharging != charging) {
+            previousBatteryCharging = charging
+            previousBatteryPercent = percent
+            previousBatterySampleAtMs = now
+            batteryPercentPerHour = 0.0
+        } else if (percent != previousBatteryPercent) {
+            val elapsed = now - previousBatterySampleAtMs
+            val gained = percent - previousBatteryPercent
+            if (charging && gained > 0 && elapsed >= 15_000L) {
+                val sample = gained * 3_600_000.0 / elapsed
+                batteryPercentPerHour = if (batteryPercentPerHour > 0.0) batteryPercentPerHour * 0.65 + sample * 0.35 else sample
+            }
+            previousBatteryPercent = percent
+            previousBatterySampleAtMs = now
+        }
+
+        if (!charging) return if (percent <= 15) "Low battery · connect charger" else "On battery"
+        val parts = mutableListOf("Charging")
+        val batteryManager = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val currentUa = try {
+            batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) ?: Int.MIN_VALUE
+        } catch (e: Exception) { Int.MIN_VALUE }
+        val voltageMv = batteryIntent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1) ?: -1
+        val currentMagnitude = if (currentUa == Int.MIN_VALUE) 0.0 else kotlin.math.abs(currentUa.toDouble())
+        if (currentMagnitude > 0.0 && voltageMv > 0) {
+            val watts = currentMagnitude * voltageMv / 1_000_000_000.0
+            if (watts >= 0.05) parts += "%.1f W".format(Locale.getDefault(), watts)
+        }
+
+        var minutesToFull: Long? = null
+        val chargeCounter = try {
+            batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) ?: Int.MIN_VALUE
+        } catch (e: Exception) { Int.MIN_VALUE }
+        if (chargeCounter > 0 && currentMagnitude > 0.0 && percent in 1..99) {
+            val fullCapacity = chargeCounter * 100.0 / percent
+            minutesToFull = (((fullCapacity - chargeCounter).coerceAtLeast(0.0) / currentMagnitude) * 60.0).toLong()
+        } else if (batteryPercentPerHour > 0.1 && percent < 100) {
+            minutesToFull = ((100 - percent) / batteryPercentPerHour * 60.0).toLong()
+        }
+        if (minutesToFull != null && minutesToFull in 1L..(7L * 24L * 60L)) {
+            val hours = minutesToFull / 60L
+            val minutes = minutesToFull % 60L
+            parts += if (hours > 0L) "~${hours}h ${minutes}m to full" else "~${minutes}m to full"
+        } else if (percent < 100) {
+            parts += "estimating time to full"
+        } else {
+            parts += "Fully charged"
+        }
+        return parts.joinToString(" · ")
     }
 
     private fun setupNavControls(exp: View) {
@@ -1717,6 +1894,13 @@ class IslandOverlayService : Service() {
                 trailingTv?.visibility = View.VISIBLE
                 trailingTv?.text = "⏱"
                 trailingTv?.setTextColor(Color.parseColor("#E7B9F5"))
+            } else if (timerRunning || timerRemainingMs > 0L) {
+                titleTv?.text = if (timerRunning) "Timer" else "Timer paused"
+                visView?.setPlaying(false)
+                visView?.visibility = View.GONE
+                trailingTv?.visibility = View.VISIBLE
+                trailingTv?.text = formatCountdown(if (timerRunning) timerFinishAtMs - System.currentTimeMillis() else timerRemainingMs)
+                trailingTv?.setTextColor(accentColor)
             } else {
                 // Idle Mode: reset icon cleanly and show Clock & Battery %
                 val pad = (4 * resources.displayMetrics.density).toInt()
@@ -1750,6 +1934,59 @@ class IslandOverlayService : Service() {
         // 2. Update Expanded Card
         expandedView?.let { v ->
             (v as? IslandContainerView)?.accentColor = accentColor
+
+            val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val batteryLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val batteryScale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+            val batteryPercent = if (batteryLevel >= 0 && batteryScale > 0) batteryLevel * 100 / batteryScale else 100
+            val batteryStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val batteryPlug = batteryIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+            val batteryTemp = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1) ?: -1
+            val isCharging = batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING || batteryStatus == BatteryManager.BATTERY_STATUS_FULL
+            val fullyCharged = batteryStatus == BatteryManager.BATTERY_STATUS_FULL
+            val actuallyCharging = batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING || (batteryPlug != 0 && !fullyCharged)
+            val batteryState = if (fullyCharged) "Fully charged" else batteryChargeDescription(batteryIntent, batteryPercent, actuallyCharging)
+            val temperature = if (batteryTemp >= 0) " · ${batteryTemp / 10}°C" else ""
+            v.findViewById<TextView>(R.id.battery_percent)?.apply {
+                text = "$batteryPercent%"
+                setTextColor(when {
+                    actuallyCharging -> Color.parseColor("#7FD88F")
+                    batteryPercent <= 15 -> Color.parseColor("#FFB4AB")
+                    else -> Color.parseColor("#E3E2E6")
+                })
+            }
+            v.findViewById<TextView>(R.id.battery_state)?.text = batteryState + temperature
+            if (batteryPercent > 20 || actuallyCharging) {
+                lowBatteryAlertShown = false
+            } else if (batteryPercent <= 15 && !lowBatteryAlertShown) {
+                lowBatteryAlertShown = true
+                handler.post {
+                    if (isRunning) showToastPill("Low battery · $batteryPercent%", R.drawable.ic_bolt, Color.parseColor("#FFB4AB"))
+                }
+            }
+
+            val timerText = if (timerRunning) formatCountdown(timerFinishAtMs - System.currentTimeMillis()) else formatCountdown(timerRemainingMs)
+            v.findViewById<TextView>(R.id.timer_remaining)?.text = if (timerRunning || timerRemainingMs > 0L) timerText else "Choose a time"
+            v.findViewById<TextView>(R.id.timer_status)?.text = when {
+                timerRunning -> "Counting down"
+                timerRemainingMs > 0L -> "Paused · ${timerText} remaining"
+                else -> "Quick countdown"
+            }
+            v.findViewById<TextView>(R.id.timer_toggle)?.text = when {
+                timerRunning -> "Pause"
+                timerRemainingMs > 0L -> "Resume"
+                else -> "Start"
+            }
+
+            val navCard = v.findViewById<View>(R.id.nav_live_card)
+            if (isNavigating && prefs.showMapsNavigation) {
+                navCard?.visibility = View.VISIBLE
+                v.findViewById<TextView>(R.id.nav_distance_live)?.text = navDistance.ifBlank { "—" }
+                v.findViewById<TextView>(R.id.nav_maneuver_live)?.text = navManeuver.ifBlank { "Continue on your route" }
+                v.findViewById<TextView>(R.id.nav_eta_live)?.text = navEta.ifBlank { "Live route" }
+            } else {
+                navCard?.visibility = View.GONE
+            }
 
             // Update PC-Style Header Clock & Date
             v.findViewById<TextView>(R.id.tv_header_time)?.text =
@@ -1786,9 +2023,16 @@ class IslandOverlayService : Service() {
 
             // Update Real-Time App Notification Banner
             val banner = v.findViewById<View>(R.id.banner_notification)
-            if (activeNotification != null && !activeNotification!!.isExpired && prefs.showAppNotifications) {
+            if (activeNotification != null && !activeNotification!!.isExpired && (prefs.showAppNotifications || activeNotification!!.isCall)) {
                 banner?.visibility = View.VISIBLE
                 val notif = activeNotification!!
+                val showCallActions = notif.isCall && notif.answerIntent != null && notif.declineIntent != null
+                val showMarkRead = !showCallActions && notif.markReadIntent != null
+                v.findViewById<View>(R.id.banner_call_answer)?.visibility = if (showCallActions) View.VISIBLE else View.GONE
+                v.findViewById<View>(R.id.banner_call_decline)?.visibility = if (showCallActions) View.VISIBLE else View.GONE
+                v.findViewById<View>(R.id.banner_notif_mark_read)?.visibility = if (showMarkRead) View.VISIBLE else View.GONE
+                v.findViewById<View>(R.id.banner_notif_btn_open)?.visibility = if (showCallActions) View.GONE else View.VISIBLE
+                v.findViewById<View>(R.id.banner_notif_btn_dismiss)?.visibility = if (showCallActions) View.GONE else View.VISIBLE
                 val iconView = v.findViewById<ImageView>(R.id.banner_notif_icon)
                 if (notif.icon != null && !notif.icon.isRecycled) {
                     iconView?.clearColorFilter()

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Legacy feature IDs retained while the island UI is intentionally focused on media and battery. -->
+    <item name="app_browser" type="id" />
+    <item name="app_files" type="id" />
+    <item name="app_instagram" type="id" />
+    <item name="app_maps" type="id" />
+    <item name="app_messages" type="id" />
+    <item name="app_phone" type="id" />
+    <item name="app_spotify" type="id" />
+    <item name="app_whatsapp" type="id" />
+    <item name="app_youtube" type="id" />
+    <item name="btn_focus_reset" type="id" />
+    <item name="btn_focus_toggle" type="id" />
+    <item name="btn_open_maps" type="id" />
+    <item name="btn_wifi_panel" type="id" />
+    <item name="chip_15m" type="id" />
+    <item name="chip_25m" type="id" />
+    <item name="chip_45m" type="id" />
+    <item name="chip_5m" type="id" />
+    <item name="focus_ring_view" type="id" />
+    <item name="gauge_battery" type="id" />
+    <item name="gauge_net_down" type="id" />
+    <item name="gauge_net_up" type="id" />
+    <item name="gauge_ram" type="id" />
+    <item name="gauge_storage" type="id" />
+    <item name="nav_distance_tv" type="id" />
+    <item name="nav_eta_tv" type="id" />
+    <item name="nav_maneuver_tv" type="id" />
+    <item name="nav_turn_icon" type="id" />
+    <item name="network_graph_strip" type="id" />
+    <item name="page_apps" type="id" />
+    <item name="page_focus" type="id" />
+    <item name="page_nav" type="id" />
+    <item name="page_tools" type="id" />
+    <item name="tab_apps" type="id" />
+    <item name="tab_focus" type="id" />
+    <item name="tab_media" type="id" />
+    <item name="tab_nav" type="id" />
+    <item name="tab_system" type="id" />
+    <item name="tab_tools" type="id" />
+    <item name="tile_alarms" type="id" />
+    <item name="tile_calc" type="id" />
+    <item name="tile_camera" type="id" />
+    <item name="tile_ringer" type="id" />
+    <item name="tile_settings" type="id" />
+    <item name="tile_torch" type="id" />
+    <item name="tv_clipboard_content" type="id" />
+    <item name="tv_clipboard_tag" type="id" />
+    <item name="tv_header_date" type="id" />
+    <item name="tv_header_time" type="id" />
+</resources>

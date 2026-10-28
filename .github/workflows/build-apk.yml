@@ -59,15 +59,15 @@ jobs:
           tag_name: v1.0.0
           name: "Dynamic Island Android Pro v1.0.0"
           body: |
-            ### 📱 Dynamic Island for Android Pro (PC-Edition Match)
-            
-            **New Features & Upgrades:**
-            - **5-Tab PC-Style Expanded Capsule**: `Media`, `System`, `Focus`, `Tools`, and `Apps` + Live Header Clock & Date, Pin `📌` lock, and horizontal swipe between tabs.
-            - **Live Download (`DL`) & Upload (`UL`) Network Histograms + LAN/WAN/VPN Telemetry**: Matches your Windows PC Dynamic Island with 48-bar live traffic graphs, LAN IP, and WAN IP that turns **bright green (`VPN`)** when a VPN is active and **red** when unprotected.
-            - **Vinyl Record Turntable & Glossy Cover Art (`AlbumArtView`)**: Spinning vinyl record disc when idle, glossy cover art with tap-to-open player app, and 12-bar live waveform visualizer + squiggly wavy scrubber.
-            - **Circular Focus Ring Timer (`FocusRingView`)**: Smooth circular Pomodoro countdown dial (`5m`, `15m`, `25m`, `50m`).
-            - **12 Accent Color Themes + OLED Specular Glint & Aura Glow**: Material Blue, Lavender, Mint, Peach, Cyan, Coral, Rose, Gold, Violet, Emerald, Crimson, and Sky.
-            - **Live Clipboard Bar & Quick Apps Launcher**: Inspect/share copied text, pop up the Android Wi-Fi panel, or launch Spotify, YouTube, WhatsApp, Instagram, Maps, Browser, Dialer, and Messages.
+            ### Dynamic Island for Android
+
+            This update focuses the expanded island on the features used at a glance:
+            - Live music controls with larger album art, current player name, seeking, progress, and volume.
+            - Battery level, reported charging power, an estimated time to full when available, and low-battery alerts.
+            - Persistent 5, 15, and 30 minute countdown timers with pause, resume, stop, and completion alerts.
+            - Google Maps next-turn directions, ETA, and live distance shown in meters.
+            - Answer and decline buttons when the calling app publishes those actions in its notification.
+            - Mark as read for notifications that expose a supported action.
           files: build_output/DynamicIsland-v1.0.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

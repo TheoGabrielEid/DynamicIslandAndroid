@@ -16,7 +16,7 @@ object NavigationStateBridge {
         val lastUpdateMs: Long = 0L
     ) {
         val isStale: Boolean
-            get() = !isNavigating || (System.currentTimeMillis() - lastUpdateMs > 15_000L)
+            get() = !isNavigating || (System.currentTimeMillis() - lastUpdateMs > 60_000L)
     }
 
     @Volatile

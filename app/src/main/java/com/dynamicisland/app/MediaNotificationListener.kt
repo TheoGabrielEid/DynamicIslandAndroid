@@ -19,6 +19,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import java.util.Locale
 
 class MediaNotificationListener : NotificationListenerService() {
 
@@ -99,6 +100,10 @@ class MediaNotificationListener : NotificationListenerService() {
         registerSessionListener()
         findActiveMediaController()
         dispatchMediaUpdate()
+        try {
+            activeNotifications?.filter { it.packageName == "com.google.android.apps.maps" }
+                ?.forEach { processNavigationNotification(it) }
+        } catch (e: Exception) {}
     }
 
     override fun onListenerDisconnected() {
@@ -151,17 +156,35 @@ class MediaNotificationListener : NotificationListenerService() {
             val isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
 
             if (isOngoing && (title.isNotEmpty() || text.isNotEmpty())) {
-                var maneuver = text
-                var distance = title
-                var eta = subText
-
-                // Often Google Maps sets: Title = "In 200 m", Text = "Turn right onto Main St", SubText = "14 min · 5:24 PM"
-                // Or: Title = "Turn right onto Main St", Text = "200 m · 14 min"
-                if (distance.contains("·") && !maneuver.contains("·")) {
-                    val temp = distance
-                    distance = maneuver
-                    maneuver = temp
+                val distancePattern = Regex("""(?i)(\d+(?:[.,]\d+)?)\s*(km|kilometers?|kilometres?|m|meters?|metres?|ft|feet|mi|miles)\b""")
+                val sources = listOf(title, text, subText)
+                val distanceSource = sources.firstOrNull { distancePattern.containsMatchIn(it) }
+                val distanceMatch = distanceSource?.let { distancePattern.find(it) }
+                val meters = distanceMatch?.let { match ->
+                    val amount = match.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return@let null
+                    val unit = match.groupValues[2].lowercase(Locale.ROOT)
+                    val multiplier = when {
+                        unit.startsWith("km") || unit.startsWith("kilo") -> 1000.0
+                        unit == "ft" || unit == "feet" -> 0.3048
+                        unit == "mi" || unit.startsWith("mile") -> 1609.344
+                        else -> 1.0
+                    }
+                    (amount * multiplier).toLong()
                 }
+                val distance = meters?.let { String.format(Locale.getDefault(), "%,d m", it) } ?: "—"
+
+                val etaPattern = Regex("""(?i)^\s*\d+\s*(?:min(?:ute)?s?|hr|hours?)(?:\b.*)?$""")
+                val maneuver = listOf(text, title).asSequence()
+                    .map { source ->
+                        distancePattern.replace(source, "")
+                            .replace(Regex("""(?i)^\s*(?:in|within|after)\s+"""), "")
+                            .replace(Regex("""(?i)\b(?:in|within|after)\s*$"""), "")
+                            .trim(' ', '·', '•', ',', '-', '–', ':')
+                    }
+                    .firstOrNull { it.isNotBlank() && !etaPattern.matches(it) }
+                    ?: "Continue on your route"
+                val etaSource = if (subText.isNotBlank()) subText else listOf(text, title).firstOrNull { etaPattern.matches(it) }.orEmpty()
+                val eta = distancePattern.replace(etaSource, "").trim(' ', '·', '•', ',', '-', '–', ':')
 
                 var navIcon: Bitmap? = null
                 val largeIcon = notification.getLargeIcon()
@@ -176,7 +199,7 @@ class MediaNotificationListener : NotificationListenerService() {
 
                 NavigationStateBridge.update(
                     isNavigating = true,
-                    maneuver = maneuver.ifEmpty { "Navigating" },
+                    maneuver = maneuver,
                     distance = distance,
                     eta = eta,
                     icon = navIcon
@@ -202,9 +225,7 @@ class MediaNotificationListener : NotificationListenerService() {
         val template = extras.getString(Notification.EXTRA_TEMPLATE) ?: ""
         if (hasMediaSession || template.contains("MediaStyle", ignoreCase = true)) return
 
-        // Skip ongoing persistent notifications (e.g. download services, foreground tasks without alerts)
         val isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
-        if (isOngoing) return
 
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim() ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim() ?: ""
@@ -220,7 +241,18 @@ class MediaNotificationListener : NotificationListenerService() {
             else -> ""
         }
 
-        if (title.isEmpty() && content.isEmpty()) return
+        val actions = notification.actions.orEmpty()
+        fun actionPendingIntent(vararg words: String) = actions.firstOrNull { action ->
+            val actionTitle = action.title?.toString()?.lowercase().orEmpty()
+            words.any { actionTitle.contains(it) }
+        }?.actionIntent
+        val answerIntent = actionPendingIntent("answer", "accept", "responder", "répondre", "contestar", "aceptar", "رد")
+        val declineIntent = actionPendingIntent("decline", "reject", "hang up", "end call", "refuser", "rechazar", "رفض")
+        val markReadIntent = actionPendingIntent("mark as read", "mark read", "mark as seen", "mark seen")
+        val isCall = notification.category == Notification.CATEGORY_CALL ||
+            (answerIntent != null && declineIntent != null)
+        if (isOngoing && !isCall) return
+        if (title.isEmpty() && content.isEmpty() && !isCall) return
 
         // Resolve friendly application name (e.g. WhatsApp, Instagram, Messages)
         val appName = try {
@@ -259,7 +291,11 @@ class MediaNotificationListener : NotificationListenerService() {
                 title = title.ifEmpty { appName },
                 text = content,
                 icon = notifIcon,
-                contentIntent = contentIntent
+                contentIntent = contentIntent,
+                markReadIntent = markReadIntent,
+                answerIntent = answerIntent,
+                declineIntent = declineIntent,
+                isCall = isCall
             )
         )
     }

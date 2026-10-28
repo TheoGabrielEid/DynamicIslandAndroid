@@ -16,10 +16,14 @@ object NotificationStateBridge {
         val text: String,
         val icon: Bitmap? = null,
         val contentIntent: PendingIntent? = null,
+        val markReadIntent: PendingIntent? = null,
+        val answerIntent: PendingIntent? = null,
+        val declineIntent: PendingIntent? = null,
+        val isCall: Boolean = false,
         val timestamp: Long = System.currentTimeMillis()
     ) {
         val isExpired: Boolean
-            get() = System.currentTimeMillis() - timestamp > 45_000L
+            get() = !isCall && System.currentTimeMillis() - timestamp > 45_000L
     }
 
     @Volatile

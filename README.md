@@ -10,7 +10,13 @@ A native Android camera punch-hole overlay (`dynamicSpot` style) bringing the Ap
 - **Interactive Squiggly Wavy Scrubber**: Real-time sinusoidal wavy progress bar that animates when music is playing, stays visibly squiggly when paused, and allows instant touch-seeking.
 - **Universal Music Integration**: Built with Android's `MediaSessionManager` to read metadata (Title, Artist, Album Art, Duration, Progress) from **Spotify, YouTube Music, Apple Music, SoundCloud, Deezer, Chrome**, and any active player.
 - **Transport Controls**: Hero Previous, Play/Pause, and Next buttons directly in the expanded card.
-- **Charging Indicator**: Automatically triggers Apple-style battery charging toast and green glow when connected to power.
+- **Live Battery Card**: Shows battery level, charging power when the device reports it, estimated time to full when available, and a low-battery alert.
+- **Quick Countdown Timer**: Start 5, 15, or 30 minute timers from the island, pause or resume them, and get an alert when one finishes. Timer state survives service restarts.
+- **Live Maps Directions**: Shows the next maneuver, ETA, and distance in meters, converting kilometer, feet, and mile distances when Maps publishes them.
+- **Call Actions**: Offers green answer and red decline controls when Phone or WhatsApp exposes those actions in its incoming-call notification.
+- **Notification Actions**: Adds a Mark as read button when the source app provides that notification action.
+- **Expanded Now Playing**: Larger album art, current player label, live playback progress, seeking, volume, and transport controls.
+- **Charging Indicator**: Automatically triggers a battery charging toast and green glow when connected to power.
 - **Custom Notch Calibration**: Real-time sliders in the app to calibrate horizontal X offset, top margin Y, and compact pill width/height to perfectly match your specific phone model.
 
 ---

@@ -44,7 +44,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Dynamic Island Pro"
+                    android:text="Dynamic Island Android"
                     android:textColor="@color/m3_on_surface"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -53,7 +53,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Material 3 Expressive · Media · LAN/WAN Graph · Focus"
+                    android:text="A cleaner notch for music, battery and notifications"
                     android:textColor="@color/m3_on_surface_var"
                     android:textSize="12sp" />
             </LinearLayout>
