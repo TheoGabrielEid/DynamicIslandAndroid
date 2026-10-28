@@ -46,7 +46,7 @@ A native Android camera punch-hole overlay (`dynamicSpot` style) bringing the Ap
 ## 📲 How to Install & Set Up on Your Phone
 
 1. **Install the APK:**
-   - Tap the downloaded APK for the latest release (for example, `DynamicIsland-v1.1.0.apk`).
+   - Tap the downloaded APK for the latest release (for example, `DynamicIsland-v1.2.0.apk`).
    - If prompted by Android, tap **Settings** and allow **Install unknown apps**.
    - Tap **Install** and open the app.
 

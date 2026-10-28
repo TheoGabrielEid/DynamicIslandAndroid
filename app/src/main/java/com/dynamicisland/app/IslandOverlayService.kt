@@ -44,6 +44,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -509,8 +510,8 @@ class IslandOverlayService : Service() {
         }
 
         val flags = (WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+                or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
 
         val density = resources.displayMetrics.density
         val pillWidthPx = (prefs.compactWidth * density).toInt()
@@ -519,7 +520,11 @@ class IslandOverlayService : Service() {
         val pillXPx = (prefs.notchXOffset * density).toInt()
 
         // 1. Compact Pill View
-        compactView = LayoutInflater.from(this).inflate(R.layout.layout_island_compact, null)
+        compactView = LayoutInflater.from(this).inflate(R.layout.layout_island_compact, null).apply {
+            isClickable = true
+            isFocusable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        }
         (compactView as? IslandContainerView)?.isCompactPill = true
         compactView?.findViewById<WaveformVisualizerView>(R.id.compact_visualizer)?.barCount = 4
 
@@ -639,6 +644,25 @@ class IslandOverlayService : Service() {
         val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat().coerceAtLeast(24f)
         var lastTapTime = 0L
 
+        compactView?.setOnClickListener { v ->
+            // A notification tap opens its app; otherwise toggle the combined island panel.
+            if (notifActiveUntil > SystemClock.elapsedRealtime() && activeNotification != null) {
+                val notif = activeNotification
+                notifActiveUntil = 0L
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                try {
+                    if (notif?.contentIntent != null) notif.contentIntent.send()
+                    else launchPackageOrWeb(notif?.packageName ?: "", "")
+                } catch (e: Exception) {
+                    launchPackageOrWeb(notif?.packageName ?: "", "")
+                }
+                updateViews()
+            } else {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                if (isExpanded) collapseIsland(force = true) else expandIsland()
+            }
+        }
+
         compactView?.setOnTouchListener { v, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -673,30 +697,8 @@ class IslandOverlayService : Service() {
                             )
                         } else {
                             lastTapTime = now
-                            // Check if an incoming notification is active: tap launches the app/chat!
-                            if (notifActiveUntil > SystemClock.elapsedRealtime() && activeNotification != null) {
-                                val notif = activeNotification
-                                notifActiveUntil = 0L
-                                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                try {
-                                    if (notif?.contentIntent != null) {
-                                        notif.contentIntent.send()
-                                    } else {
-                                        launchPackageOrWeb(notif?.packageName ?: "", "")
-                                    }
-                                } catch (e: Exception) {
-                                    launchPackageOrWeb(notif?.packageName ?: "", "")
-                                }
-                                updateViews()
-                            } else {
-                                // Instant tap: expand or collapse island immediately
-                                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                if (isExpanded) {
-                                    collapseIsland(force = true)
-                                } else {
-                                    expandIsland()
-                                }
-                            }
+                            // performClick also gives accessibility services the same action.
+                            v.performClick()
                         }
                     } else if (abs(dx) > touchSlop * 2f && abs(dx) > abs(dy)) {
                         // Horizontal swipe across compact pill: dismiss notification
@@ -1778,10 +1780,62 @@ class IslandOverlayService : Service() {
         (expandedView as? IslandContainerView)?.triggerAura(color, durationMs)
     }
 
+    private fun shouldShowCompactIsland(now: Long): Boolean {
+        val hasMediaSession = currentTitle.isNotBlank() && currentTitle != "Nothing playing"
+        val hasNotification = activeNotification != null && now < notifActiveUntil
+        val hasToast = toastMessage.isNotBlank() && now < toastActiveUntil
+        val hasTimer = timerRunning || timerRemainingMs > 0L || focusRunning
+        val hasNavigation = isNavigating && prefs.showMapsNavigation
+        val hasDeviceActivity = isTorchOn || (isHeadsetPlugged && prefs.showHeadsetConnected)
+        return isPlaying || hasMediaSession || hasNotification || hasToast || hasTimer || hasNavigation || hasDeviceActivity
+    }
+
     private fun updateViews() {
         val accentColor = parseAccentColor()
         val now = SystemClock.elapsedRealtime()
         val nowDate = Date()
+
+        // Keep the notch out of the way unless it has something useful to show.
+        // GONE removes its touch region too, so taps pass through to the app below.
+        val shouldShowIsland = isExpanded || shouldShowCompactIsland(now)
+        compactView?.let { view ->
+            if (isExpanded) {
+                view.animate().cancel()
+                view.visibility = View.GONE
+                view.alpha = 1f
+                view.scaleX = 1f
+                view.scaleY = 1f
+            } else if (shouldShowIsland && view.visibility != View.VISIBLE) {
+                view.animate().cancel()
+                view.visibility = View.VISIBLE
+                view.alpha = 0f
+                view.scaleX = 0.94f
+                view.scaleY = 0.94f
+                view.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(220L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            } else if (!shouldShowIsland && view.visibility == View.VISIBLE) {
+                view.animate().cancel()
+                view.animate()
+                    .alpha(0f)
+                    .scaleX(0.96f)
+                    .scaleY(0.96f)
+                    .setDuration(150L)
+                    .withEndAction {
+                        if (!isExpanded && !shouldShowCompactIsland(SystemClock.elapsedRealtime())) {
+                            view.visibility = View.GONE
+                        }
+                        view.alpha = 1f
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                    }
+                    .start()
+            }
+        }
 
         // 1. Update Compact Pill
         compactView?.let { v ->
@@ -1902,7 +1956,7 @@ class IslandOverlayService : Service() {
                 trailingTv?.text = formatCountdown(if (timerRunning) timerFinishAtMs - System.currentTimeMillis() else timerRemainingMs)
                 trailingTv?.setTextColor(accentColor)
             } else {
-                // Idle Mode: reset icon cleanly and show Clock & Battery %
+                // An idle island is hidden below; this branch only resets the recycled view state.
                 val pad = (4 * resources.displayMetrics.density).toInt()
                 iconIv?.setPadding(pad, pad, pad, pad)
                 val iconRes = when {
@@ -1917,17 +1971,9 @@ class IslandOverlayService : Service() {
                 visView?.visibility = View.GONE
                 trailingTv?.visibility = View.VISIBLE
 
-                if (prefs.showIdleClockBattery) {
-                    val clockStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(nowDate)
-                    val batPct = getBatteryPercent()
-                    titleTv?.text = if (isTorchOn) "⚡ Torch Active" else if (isHeadsetPlugged) "🎧 Headphones On" else clockStr
-                    trailingTv?.text = "$batPct%"
-                    trailingTv?.setTextColor(Color.parseColor("#7FD88F"))
-                } else {
-                    titleTv?.text = if (isHeadsetPlugged) "🎧 Headphones Active" else "Dynamic Island"
-                    trailingTv?.text = "●"
-                    trailingTv?.setTextColor(accentColor)
-                }
+                titleTv?.text = ""
+                trailingTv?.text = ""
+                trailingTv?.setTextColor(accentColor)
             }
         }
 
