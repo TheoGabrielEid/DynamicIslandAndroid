@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.widget.Button
 import android.widget.TextView
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -44,6 +45,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnResetPos: Button
     private lateinit var btnTest: Button
     private lateinit var btnTestCharging: Button
+    private lateinit var advancedSettings: View
+    private lateinit var advancedSettingsToggle: View
+    private lateinit var advancedSettingsTitle: TextView
+    private lateinit var advancedSettingsArrow: TextView
 
     private lateinit var themeChips: List<Pair<TextView, String>>
 
@@ -99,6 +104,10 @@ class MainActivity : AppCompatActivity() {
         btnResetPos = findViewById(R.id.btn_reset_pos)
         btnTest = findViewById(R.id.btn_test_island)
         btnTestCharging = findViewById(R.id.btn_test_charging)
+        advancedSettings = findViewById(R.id.advanced_settings)
+        advancedSettingsToggle = findViewById(R.id.advanced_settings_header)
+        advancedSettingsTitle = findViewById(R.id.advanced_settings_title)
+        advancedSettingsArrow = findViewById(R.id.advanced_settings_arrow)
 
         themeChips = listOf(
             findViewById<TextView>(R.id.theme_periwinkle) to "#A8C7FA",
@@ -148,6 +157,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        advancedSettingsToggle.setOnClickListener {
+            val shouldExpand = advancedSettings.visibility != View.VISIBLE
+            advancedSettingsToggle.isEnabled = false
+            advancedSettingsTitle.text = if (shouldExpand) "Hide appearance & behavior" else "Customize appearance & behavior"
+            advancedSettingsArrow.text = if (shouldExpand) "⌃" else "⌄"
+            if (shouldExpand) {
+                advancedSettings.visibility = View.VISIBLE
+                advancedSettings.alpha = 0f
+                advancedSettings.animate().alpha(1f).setDuration(180L).withEndAction {
+                    advancedSettingsToggle.isEnabled = true
+                }.start()
+            } else {
+                advancedSettings.animate().alpha(0f).setDuration(140L).withEndAction {
+                    advancedSettings.visibility = View.GONE
+                    advancedSettings.alpha = 1f
+                    advancedSettingsToggle.isEnabled = true
+                }.start()
+            }
+        }
+
         btnOverlay.setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val intent = Intent(

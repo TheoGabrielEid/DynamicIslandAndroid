@@ -41,14 +41,14 @@ jobs:
       - name: Rename and Stage APK
         run: |
           mkdir -p build_output
-          cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-v1.3.0.apk
+          cp app/build/outputs/apk/debug/*.apk build_output/DynamicIsland-v1.4.0.apk
           ls -la build_output/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DynamicIsland-APK
-          path: build_output/DynamicIsland-v1.3.0.apk
+          path: build_output/DynamicIsland-v1.4.0.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -56,8 +56,8 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.0
-          name: "Dynamic Island Android v1.3.0"
+          tag_name: v1.4.0
+          name: "Dynamic Island Android v1.4.0"
           body: |
             ### Dynamic Island for Android
 
@@ -65,7 +65,7 @@ jobs:
             - The idle notch stays hidden until media, timers, calls, notifications, navigation, or a short alert is active.
             - Notch taps reliably open and close the combined panel, with touch handling exposed to accessibility services.
             - Compact island animations fade and scale smoothly as activity starts and ends.
-            - The app settings screen gets a softer layered dark background and clearer idle behavior.
+            - The app settings screen gets a softer layered dark background and keeps advanced controls collapsed until requested.
             - Expanded panel height is capped, scrolls when needed, and uses smaller artwork and controls.
             - Live music controls with compact album art, current player name, seeking, progress, and volume.
             - Battery level, reported charging power, an estimated time to full when available, and low-battery alerts.
@@ -73,6 +73,6 @@ jobs:
             - Google Maps next-turn directions, ETA, and live distance shown in meters.
             - Answer and decline buttons when the calling app publishes those actions in its notification.
             - Mark as read for notifications that expose a supported action.
-          files: build_output/DynamicIsland-v1.3.0.apk
+          files: build_output/DynamicIsland-v1.4.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
